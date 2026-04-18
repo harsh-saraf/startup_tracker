@@ -26,11 +26,13 @@ cd startup-radar-template
 pip install -r requirements.txt
 ```
 
-Then launch Claude Code and run the setup skill:
+Then launch Claude Code **from inside this folder** and run the setup skill:
 
 ```bash
 claude
 ```
+
+> **Important:** You must run `claude` from the repo directory (after `cd startup-radar-template`). If you run it from elsewhere, the `/setup-radar` skill won't be found.
 
 Inside Claude Code, type:
 
@@ -85,7 +87,7 @@ Everything is meant to be edited:
 - `config.yaml` — your preferences
 - `app.py` — the Streamlit dashboard. Rearrange tabs, add views, drop features.
 - `sources/` — add a new source by dropping a file here and wiring it into `main.py`
-- `.claude/skills/deepdive.md` — tweak the research brief template
+- `.claude/skills/deepdive/SKILL.md` — tweak the research brief template
 - `filters.py` — custom filter logic beyond what YAML supports
 
 The intended workflow: fork, clone, run `/setup-radar`, then use `claude` to extend whatever you want. The point of this template is that Claude Code writes the "last mile" — custom parsers, custom filters, custom dashboard views — so you don't have to.
@@ -128,8 +130,8 @@ startup-radar-template/
   .github/workflows/       GitHub Actions daily.yml
   .claude/
     skills/
-      setup.md             /setup-radar interactive onboarding
-      deepdive.md          /deepdive company research
+      setup-radar/SKILL.md   /setup-radar interactive onboarding
+      deepdive/SKILL.md      /deepdive company research
     settings.json
 ```
 

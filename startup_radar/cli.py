@@ -24,6 +24,11 @@ _MAX_SCHEDULED_RUNTIME_SEC = 15 * 60
 _LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 
 
+def _repo_root() -> Path:
+    """Repo root for resolving DB / config / logs. Tests monkeypatch this."""
+    return Path(__file__).resolve().parent.parent
+
+
 # --- shared helpers --------------------------------------------------------
 
 
@@ -216,6 +221,266 @@ def deepdive(
 
     path = generate(company)
     typer.echo(f"Report saved: {path}")
+
+
+# --- resilience commands (Phase 6) ----------------------------------------
+
+
+@app.command()
+def backup(
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Destination tarball. Default: backups/startup-radar-<ts>.tar.gz.",
+        ),
+    ] = None,
+    no_secrets: Annotated[
+        bool,
+        typer.Option("--no-secrets", help="Exclude token.json and credentials.json."),
+    ] = False,
+    db_only: Annotated[
+        bool,
+        typer.Option(
+            "--db-only",
+            help="Pack startup_radar.db only. Implies --no-secrets and skips config.yaml.",
+        ),
+    ] = False,
+) -> None:
+    """Tar up DB + config + OAuth for local resilience."""
+    raise typer.Exit(code=_backup(output=output, no_secrets=no_secrets, db_only=db_only))
+
+
+@app.command()
+def doctor(
+    network: Annotated[
+        bool,
+        typer.Option("--network", help="Include HTTP healthchecks for enabled sources."),
+    ] = False,
+) -> None:
+    """Validate environment, config, credentials, and source reachability."""
+    raise typer.Exit(code=_doctor(network=network))
+
+
+@app.command()
+def status() -> None:
+    """Print branch, version, last-run age, DB row counts. No network."""
+    raise typer.Exit(code=_status())
+
+
+# --- resilience helpers ---------------------------------------------------
+
+
+def _backup(*, output: Path | None, no_secrets: bool, db_only: bool) -> int:
+    import tarfile
+
+    from startup_radar.config import load_config
+
+    repo_root = _repo_root()
+
+    # Prefer the live config's sqlite.path; fall back to the default if the
+    # config itself is broken (so `backup --db-only` still works when config
+    # is the very thing the user is trying to recover from).
+    try:
+        cfg = load_config()
+        db_path = Path(cfg.output.sqlite.path)
+        if not db_path.is_absolute():
+            db_path = repo_root / db_path
+    except Exception:
+        db_path = repo_root / "startup_radar.db"
+
+    if db_only and not db_path.exists():
+        print(f"✗ DB not found at {db_path}")
+        return 1
+
+    items: list[tuple[Path, str]] = []
+    if db_path.exists():
+        items.append((db_path, db_path.name))
+    if not db_only:
+        cfg_file = repo_root / "config.yaml"
+        if cfg_file.exists():
+            items.append((cfg_file, "config.yaml"))
+        if not no_secrets:
+            for secret in ("token.json", "credentials.json"):
+                p = repo_root / secret
+                if p.exists():
+                    items.append((p, secret))
+
+    if not items:
+        print("✗ Nothing to back up (no DB, no config, no secrets found).")
+        return 1
+
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    if output is None:
+        backups_dir = repo_root / "backups"
+        backups_dir.mkdir(exist_ok=True)
+        output = backups_dir / f"startup-radar-{ts}.tar.gz"
+    else:
+        output.parent.mkdir(parents=True, exist_ok=True)
+
+    with tarfile.open(output, "w:gz") as tar:
+        for src, arcname in items:
+            tar.add(src, arcname=arcname)
+
+    size_kb = output.stat().st_size / 1024
+    manifest = ", ".join(a for _, a in items)
+    print(f"✓ Backup written: {output}  ({size_kb:.1f} KB)")
+    print(f"  Contents: {manifest}")
+    return 0
+
+
+def _doctor(*, network: bool) -> int:
+    import shutil
+
+    from startup_radar.config import ConfigError, load_config
+    from startup_radar.sources.registry import SOURCES
+
+    repo_root = _repo_root()
+    checks: list[tuple[str, str, str]] = []  # (mark, title, detail)
+    fails = 0
+
+    major, minor = sys.version_info[:2]
+    if (major, minor) >= (3, 10):
+        checks.append(("✓", "Python version", f"{major}.{minor}"))
+    else:
+        checks.append(("✗", "Python version", f"{major}.{minor} (need ≥3.10)"))
+        fails += 1
+
+    cfg = None
+    try:
+        cfg = load_config()
+        checks.append(("✓", "config.yaml", "validates against AppConfig schema"))
+    except ConfigError as e:
+        first = str(e).splitlines()[0]
+        checks.append(("✗", "config.yaml", first))
+        fails += 1
+
+    if cfg is not None:
+        db_path = Path(cfg.output.sqlite.path)
+        if not db_path.is_absolute():
+            db_path = repo_root / db_path
+        db_dir = db_path.parent
+        if os.access(db_dir, os.W_OK):
+            checks.append(("✓", "SQLite path", f"{db_path} (parent writable)"))
+        else:
+            checks.append(("✗", "SQLite path", f"{db_dir} not writable"))
+            fails += 1
+
+    try:
+        free_mb = shutil.disk_usage(repo_root).free // (1024 * 1024)
+        if free_mb >= 100:
+            checks.append(("✓", "Disk free", f"{free_mb} MB"))
+        else:
+            checks.append(("⚠", "Disk free", f"{free_mb} MB (low, but non-fatal)"))
+    except OSError as e:
+        checks.append(("⚠", "Disk free", f"unknown: {e}"))
+
+    if cfg is not None:
+        for key, source in SOURCES.items():
+            sub = getattr(cfg.sources, key, None)
+            if sub is None or not getattr(sub, "enabled", False):
+                checks.append(("⚠", f"source.{key}", "disabled in config"))
+                continue
+            try:
+                ok, detail = source.healthcheck(cfg, network=network)
+                mark = "✓" if ok else "✗"
+                checks.append((mark, f"source.{key}", detail))
+                if not ok:
+                    fails += 1
+            except Exception as e:
+                checks.append(("✗", f"source.{key}", f"healthcheck raised: {e}"))
+                fails += 1
+
+    print("=" * 60)
+    print(f"Startup Radar — doctor  ({'network' if network else 'fast'} mode)")
+    print("=" * 60)
+    for mark, title, detail in checks:
+        print(f"  {mark} {title:<24} {detail}")
+    print()
+    if fails:
+        print(f"✗ {fails} check(s) failed.")
+    else:
+        print("✓ All checks passed.")
+    return 1 if fails else 0
+
+
+def _status() -> int:
+    import sqlite3
+    import subprocess
+
+    repo_root = _repo_root()
+
+    try:
+        from startup_radar import __version__
+
+        version = __version__
+    except ImportError:
+        version = "unknown"
+
+    try:
+        branch = (
+            subprocess.check_output(
+                ["git", "branch", "--show-current"],
+                cwd=repo_root,
+                text=True,
+                timeout=2,
+            ).strip()
+            or "(detached)"
+        )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        branch = "(not a git repo)"
+
+    logs_dir = repo_root / "logs"
+    latest_log: Path | None = None
+    last_run_age = "never"
+    if logs_dir.is_dir():
+        log_files = sorted(logs_dir.glob("*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if log_files:
+            latest_log = log_files[0]
+            age_s = datetime.now().timestamp() - latest_log.stat().st_mtime
+            last_run_age = _format_age(age_s)
+
+    db_counts: dict[str, int | str] = {"startups": 0, "job_matches": 0, "connections": 0}
+    db_size = "—"
+    try:
+        from startup_radar.config import load_config
+
+        cfg = load_config()
+        db_path = Path(cfg.output.sqlite.path)
+        if not db_path.is_absolute():
+            db_path = repo_root / db_path
+        if db_path.exists():
+            db_size = f"{db_path.stat().st_size / 1024:.1f} KB"
+            with sqlite3.connect(str(db_path)) as conn:
+                for table in db_counts:
+                    try:
+                        (n,) = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+                        db_counts[table] = n
+                    except sqlite3.OperationalError:
+                        db_counts[table] = "—"
+    except Exception as e:
+        db_counts = {"startups": f"error: {e}", "job_matches": "—", "connections": "—"}
+
+    print(f"Branch:         {branch}")
+    print(f"Version:        {version}")
+    print(f"Last run:       {last_run_age}" + (f"  ({latest_log.name})" if latest_log else ""))
+    print(f"DB size:        {db_size}")
+    print(
+        f"DB rows:        startups={db_counts['startups']}  "
+        f"job_matches={db_counts['job_matches']}  connections={db_counts['connections']}"
+    )
+    return 0
+
+
+def _format_age(seconds: float) -> str:
+    if seconds < 60:
+        return f"{int(seconds)}s ago"
+    if seconds < 3600:
+        return f"{int(seconds // 60)}m ago"
+    if seconds < 86400:
+        return f"{int(seconds // 3600)}h ago"
+    return f"{int(seconds // 86400)}d ago"
 
 
 if __name__ == "__main__":

@@ -66,6 +66,27 @@ class RSSSource(Source):
     name = "RSS"
     enabled_key = "rss"
 
+    def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:
+        feeds = cfg.sources.rss.feeds
+        if not feeds:
+            return (False, "no feeds configured")
+        if not network:
+            return (True, f"{len(feeds)} feed(s) configured")
+        import requests
+
+        url = str(feeds[0].url)
+        try:
+            r = requests.head(url, timeout=10, allow_redirects=True)
+            # Some feed hosts return 405 for HEAD; fall back to a streamed GET.
+            if r.status_code == 405:
+                r = requests.get(url, timeout=10, stream=True, allow_redirects=True)
+                r.close()
+            if r.status_code < 400:
+                return (True, f"{len(feeds)} feed(s); first feed HTTP {r.status_code}")
+            return (False, f"first feed HTTP {r.status_code}")
+        except requests.RequestException as e:
+            return (False, f"first feed unreachable: {e.__class__.__name__}")
+
     def fetch(self, cfg: AppConfig) -> list[Startup]:
         rss_cfg = cfg.sources.rss
         if not rss_cfg.enabled:

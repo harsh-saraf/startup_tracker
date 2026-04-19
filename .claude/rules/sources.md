@@ -15,3 +15,4 @@ paths:
 - **Never:** read `os.environ` directly inside a source. Pull from `cfg`.
 - **Must:** any new source ships with a vcrpy cassette under `tests/fixtures/cassettes/<name>/` and a happy-path + empty-response test (Phase 10 dependency; flag if blocked).
 - **Must:** the company name produced by a source is the raw name as it appears in the wild — `normalize_company` / `dedup_key` in `startup_radar/parsing/normalize.py` handles canonicalization. Don't normalize twice.
+- **Must:** override `healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]` (Phase 6). Fast mode = filesystem/config only, ≤10ms; `network=True` may HEAD the source's root with `timeout=10`. Never raise — return `(False, "<reason>")`. Default ABC impl returns `(True, "no healthcheck defined")` and is acceptable only for a brand-new source pending a real check.

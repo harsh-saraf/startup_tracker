@@ -12,6 +12,9 @@
 | Scheduled run (cron/GH Actions) | `uv run startup-radar run --scheduled` |
 | Open dashboard | `make serve` (or `uv run startup-radar serve`) |
 | Research brief | `uv run startup-radar deepdive "Anthropic"` |
+| Local backup tarball | `uv run startup-radar backup [--no-secrets] [--db-only]` |
+| Env / config / source healthchecks | `uv run startup-radar doctor [--network]` |
+| Branch + version + last-run + row counts | `uv run startup-radar status` |
 | Lint | `make lint` |
 | Format in place | `make format` |
 | Tests | `make test` |

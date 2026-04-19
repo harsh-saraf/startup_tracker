@@ -15,6 +15,10 @@ LinkedIn*.csv
 logs/
 reports/
 
+# Phase 6 backups
+backups/
+*.tar.gz
+
 # Python
 __pycache__/
 *.pyc

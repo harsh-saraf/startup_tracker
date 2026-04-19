@@ -113,6 +113,17 @@ class GmailSource(Source):
     name = "Gmail"
     enabled_key = "gmail"
 
+    def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:
+        # Filesystem-only even under --network; Phase 13 will pair this with
+        # a proactive token refresh via secrets.py. Until then, leaving the
+        # OAuth refresh to `run` is less surprising than surfacing a stale
+        # token as a doctor failure on every tick.
+        if not CREDENTIALS_FILE.exists():
+            return (False, "credentials.json missing")
+        if not TOKEN_FILE.exists():
+            return (False, "token.json missing — run `startup-radar run` once to auth")
+        return (True, "credentials + token present")
+
     def fetch(self, cfg: AppConfig) -> list[Startup]:
         gmail_cfg = cfg.sources.gmail
         if not gmail_cfg.enabled:

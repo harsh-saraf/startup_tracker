@@ -26,7 +26,8 @@
 - `startup-radar run` replaces `python main.py`; `startup-radar run --scheduled` replaces `python daily_run.py` (folds the file-logging + 15-min timeout + stdout-redirect path into `cli.py`).
 - `startup-radar serve` wraps `streamlit run app.py`; `startup-radar deepdive COMPANY` replaces `python deepdive.py`.
 - `deepdive.py` re-homed under `startup_radar/research/`; `main.py` and `daily_run.py` deleted. `Makefile` `run`/`serve` targets now delegate to the CLI.
-- Still outstanding: `startup-radar init` / `doctor` / `status` / `backup` (Phase 7–8) and `schedule install` (Phase 14).
+- **RESOLVED (Phase 6):** `startup-radar doctor`, `status`, and `backup` land. `doctor` runs env/config/credential/per-source healthchecks (fast by default; `--network` opts into HTTP probes). `status` prints branch/version/last-run/DB row counts. `backup` writes `backups/startup-radar-<ts>.tar.gz` of DB + config + OAuth (with `--no-secrets` / `--db-only` flags); `backups/` is gitignored. `Source.healthcheck()` was extended to `(cfg, *, network=False) -> tuple[bool, str]` with per-source overrides.
+- Still outstanding: `startup-radar init` wizard (Phase 7) and `schedule install` (Phase 14). Cloud-sync for backups is deferred to Phase 9 (GH Actions DB persistence); restore command is deferred to Phase 12 (storage migrator) because a naive DB replace can silently break the dashboard.
 
 ### 2. Configuration & secrets (PARTIAL — Phase 5)
 - **RESOLVED (Phase 5):** `config_loader.py` replaced by pydantic `AppConfig` at `startup_radar/config/{schema,loader}.py`. Validation errors point at field paths; `extra="forbid"` catches YAML typos; typed attribute access across `cli.py`, `filters.py`, all 4 sources, `research/deepdive.py`, and `app.py`.

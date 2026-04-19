@@ -20,8 +20,10 @@ from startup_radar.models import Startup
 from startup_radar.sources.base import Source
 
 EDGAR_SEARCH_URL = "https://efts.sec.gov/LATEST/search-index"
+EDGAR_BROWSE_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent"
+_USER_AGENT = "startup-radar-template (github.com/xavierahojjx-afk/startup-radar-template)"
 EDGAR_HEADERS = {
-    "User-Agent": "startup-radar-template (github.com/xavierahojjx-afk/startup-radar-template)",
+    "User-Agent": _USER_AGENT,
     "Accept": "application/json",
 }
 
@@ -31,6 +33,26 @@ log = logging.getLogger(__name__)
 class SECEdgarSource(Source):
     name = "SEC EDGAR"
     enabled_key = "sec_edgar"
+
+    def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:
+        sic = cfg.sources.sec_edgar.industry_sic_codes
+        if not sic:
+            return (False, "no industry_sic_codes configured")
+        if not network:
+            return (True, f"{len(sic)} SIC code(s) configured")
+
+        try:
+            r = requests.head(
+                EDGAR_BROWSE_URL,
+                headers={"User-Agent": _USER_AGENT},
+                timeout=10,
+                allow_redirects=True,
+            )
+            if r.status_code < 400:
+                return (True, f"EDGAR HTTP {r.status_code}")
+            return (False, f"EDGAR HTTP {r.status_code}")
+        except requests.RequestException as e:
+            return (False, f"EDGAR unreachable: {e.__class__.__name__}")
 
     def fetch(self, cfg: AppConfig) -> list[Startup]:
         edgar_cfg = cfg.sources.sec_edgar

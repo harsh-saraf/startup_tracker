@@ -32,7 +32,7 @@ This is a **single-user personal tool** that wants production-grade DX, not a Sa
 ### Adds (missing from v1.0)
 | Item | Tier | Why |
 |---|---|---|
-| `startup-radar backup` → tarball of DB + config + token | Tier 1 | Single most important resilience feature for a personal tool. Trivial. |
+| ✅ `startup-radar backup` → tarball of DB + config + token | Tier 1 | **DONE Phase 6** — writes `backups/startup-radar-<ts>.tar.gz` with DB + `config.yaml` + OAuth; `--no-secrets`/`--db-only` flags. `backups/` gitignored. Tag: `phase-6`. |
 | `startup-radar export --format csv\|json` | Tier 2 | User owns their data. |
 | `PRAGMA user_version` schema versioning | Tier 2 | Even without alembic. |
 | `setuptools-scm` git-tag versioning in `pyproject.toml` | Tier 1 | Move from Tier 4 to Tier 1 alongside `pyproject.toml` work. |
@@ -72,7 +72,7 @@ Don't commit `uv.lock` AND a `requirements.txt`. Pick `uv.lock` as source of tru
 | 5 | ✅ Source ABC + centralized parsing module + registry | 0.5 day | **DONE Phase 3** — `startup_radar/sources/{base,registry}.py` + `parsing/{funding,normalize}.py`. Tag: `phase-3`. |
 | 6 | ✅ Typer CLI + research/ subpackage + scm versioning | 1 day | **DONE Phase 4** — `startup-radar run|serve|deepdive`; `run --scheduled` folds the old `daily_run.py` logging+timeout; `deepdive.py` relocated to `startup_radar/research/`; `[project.scripts]` + `setuptools-scm` wired. Tag: `phase-4`. |
 | 7 | ✅ Pydantic config + filters move | 0.5 day | **DONE Phase 5** — `startup_radar/config/{schema,loader}.py` (pydantic `AppConfig`, `extra="forbid"`, field-path error messages); `filters.py` → `startup_radar/filters.py` typed against `AppConfig`; `parse_amount_musd` wired in (retired duplicate `_parse_amount_musd`); `Source.fetch(cfg: AppConfig)` retyped and all 4 sources + `cli.py` + `deepdive.py` + `app.py` updated. `.env` / `pydantic-settings` deferred to Phase 13 (no current env-var consumer). Tag: `phase-5`. |
-| 8 | `startup-radar backup` + `doctor` + `status` | 0.5 day | Resilience. |
+| 8 | ✅ `startup-radar backup` + `doctor` + `status` | 0.5 day | **DONE Phase 6** — three Typer commands; `Source.healthcheck()` extended to `(cfg, *, network=False) -> tuple[bool, str]` with per-source overrides; `backups/` gitignored; 11 new CLI tests. Tag: `phase-6`. |
 | 9 | GH Actions DB persistence via commit-to-data-branch | 1 day | Pick **one** option. |
 | 10 | vcrpy fixtures + real source tests | 3-4 days | Underestimated in v1.0; cassette recording is fiddly. |
 | 11 | Decompose `app.py` into `web/pages/` + cache wrappers | 2 days | Skip `components/` until ≥3 reuses. |

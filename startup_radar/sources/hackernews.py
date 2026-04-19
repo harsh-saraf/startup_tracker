@@ -24,6 +24,25 @@ class HackerNewsSource(Source):
     name = "Hacker News"
     enabled_key = "hackernews"
 
+    def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:
+        queries = cfg.sources.hackernews.queries
+        if not queries:
+            return (False, "no queries configured")
+        if not network:
+            return (True, f"{len(queries)} query(ies) configured")
+
+        try:
+            r = requests.get(
+                "https://hn.algolia.com/api/v1/search",
+                params={"query": "startup", "hitsPerPage": "1"},
+                timeout=10,
+            )
+            if r.status_code == 200:
+                return (True, "Algolia API HTTP 200")
+            return (False, f"Algolia API HTTP {r.status_code}")
+        except requests.RequestException as e:
+            return (False, f"Algolia unreachable: {e.__class__.__name__}")
+
     def fetch(self, cfg: AppConfig) -> list[Startup]:
         hn_cfg = cfg.sources.hackernews
         if not hn_cfg.enabled:

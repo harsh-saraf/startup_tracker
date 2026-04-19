@@ -13,8 +13,8 @@ class Source(ABC):
 
     Subclasses MUST set `name` (human-readable) and `enabled_key`
     (attribute name on cfg.sources). `fetch(cfg)` is the only required
-    method; `healthcheck()` is optional and returns True by default
-    (Phase 8's `startup-radar doctor` will use it).
+    method; `healthcheck()` is optional and defaults to a pass-through
+    (Phase 6's `startup-radar doctor` consumes it).
     """
 
     name: str
@@ -29,5 +29,11 @@ class Source(ABC):
         crash that aborts the whole run.
         """
 
-    def healthcheck(self) -> bool:
-        return True
+    def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:
+        """Return (ok, detail). `network=False` → filesystem/config only.
+
+        Override per source. Default implementation always returns
+        `(True, "no healthcheck defined")` so a freshly scaffolded source
+        fails open rather than crashing `doctor`.
+        """
+        return (True, "no healthcheck defined")

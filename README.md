@@ -124,6 +124,16 @@ During setup, Claude will ask how you want to schedule automatic daily runs. Opt
 - **Linux cron** — same idea, for Linux
 - **Manual** — just run `startup-radar run --scheduled` whenever you want
 
+## Resilience & maintenance
+
+Three CLI commands help keep things healthy between runs:
+
+- `startup-radar status` — prints the current branch, version, the age of your last scheduled run, and your DB row counts. Pure read, no network.
+- `startup-radar doctor [--network]` — validates your `config.yaml`, checks the DB path is writable, verifies per-source credentials, and (with `--network`) pokes each enabled source to confirm it's reachable. Exits 0 green, 1 if anything is broken.
+- `startup-radar backup [--no-secrets] [--db-only]` — writes a tarball of your DB + `config.yaml` + OAuth files into `backups/` (gitignored). Default **includes** `token.json` + `credentials.json` so you can restore after a disk loss; pass `--no-secrets` before sharing the tarball. `--db-only` packs only `startup_radar.db`.
+
+Backups live on your own disk — they're not encrypted. If you copy one off your machine, use `--no-secrets`.
+
 ## Customizing with Claude Code
 
 Everything in this project is meant to be edited. The easiest way to customize is to open `claude` in the project folder and ask for what you want in plain English:

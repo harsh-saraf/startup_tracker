@@ -31,8 +31,10 @@ Single-user Python tool that aggregates startup-funding signals from RSS, Hacker
 │       └── {rss,hackernews,sec_edgar,gmail}.py
 ├── sinks/google_sheets.py
 ├── scheduling/                              # cron, launchd, Windows Task templates
+├── backups/                                 # local tarballs from `startup-radar backup` (gitignored, Phase 6)
 ├── tests/test_smoke.py                      # Phase 0 placeholder; real coverage Phase 10
 ├── tests/parsing/{test_funding,test_normalize}.py  # Phase 3
+├── tests/test_cli_{backup,doctor,status}.py # Phase 6 — resilience CLI tests
 ├── docs/                                    # PRODUCTION_REFACTOR_PLAN, CRITIQUE_APPENDIX, AUDIT_FINDINGS, plans/phase-N
 └── .claude/                                 # this directory — harness
 ```
@@ -62,6 +64,9 @@ make serve                       # uv run startup-radar serve
 make run                         # uv run startup-radar run
 uv run startup-radar run --scheduled      # cron/launchd mode (logs + 15-min timeout)
 uv run startup-radar deepdive "Anthropic" # research brief .docx
+uv run startup-radar status               # branch + version + last-run age + DB row counts
+uv run startup-radar doctor [--network]   # env / config / credentials / source healthchecks
+uv run startup-radar backup [--no-secrets] [--db-only] # local tar.gz of DB + config + OAuth
 ```
 
 ## Gotchas

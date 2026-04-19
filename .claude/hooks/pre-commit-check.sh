@@ -70,7 +70,14 @@ BLOCK: requirements.txt edited but pyproject.toml exists. Edit pyproject.toml; r
   fi
 fi
 
-# 6. uv.lock manual edits — block only if uv.lock is the *only* change
+# 6. backup tarballs / backups/ must never be committed.
+if echo "${CHANGED}" | grep -qE '^backups/|\.tar\.gz$'; then
+  ISSUES="${ISSUES}
+BLOCK: attempting to commit a backup tarball or backups/ path — these are gitignored for a reason (contain token.json)."
+  BLOCK=1
+fi
+
+# 7. uv.lock manual edits — block only if uv.lock is the *only* change
 #    (hand-edit signal). Legitimate regeneration via `uv add`/`uv sync`
 #    also touches pyproject.toml (or other code), so we skip the block
 #    when anything else changed. The Edit/Write(uv.lock) deny in

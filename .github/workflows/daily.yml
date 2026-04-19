@@ -45,7 +45,7 @@ jobs:
           TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
 
       - name: Run pipeline
-        run: uv run python daily_run.py
+        run: uv run startup-radar run --scheduled
 
       - name: Upload database artifact
         uses: actions/upload-artifact@v4

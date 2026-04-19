@@ -31,7 +31,7 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash]
    ```
 4. Register in `startup_radar/sources/registry.py` — add the import and one entry to the `SOURCES` dict.
 5. Add a vcrpy cassette skeleton under `tests/fixtures/cassettes/<name>/` and a `tests/unit/test_<name>.py` with one happy path + one empty-response test.
-6. Surface to user: file diff, what config keys to add under `cfg["sources"][<enabled_key>]`, what to verify with `make run`.
+6. Surface to user: file diff, what config keys to add under `cfg["sources"][<enabled_key>]`, what to verify with `startup-radar run`.
 
 ## Constraints
 - Never invent feed URLs — get them from the user.

@@ -26,10 +26,10 @@ typecheck:  ## Run mypy on typed modules
 ci: lint format-check typecheck test  ## Full local CI: lint + format + typecheck + test
 
 serve:  ## Start the Streamlit dashboard
-	uv run streamlit run app.py
+	uv run startup-radar serve
 
 run:  ## Run the discovery pipeline once
-	uv run python main.py
+	uv run startup-radar run
 
 doctor:  ## Quick environment check (Phase 4 will replace with `startup-radar doctor`)
 	@uv run python --version

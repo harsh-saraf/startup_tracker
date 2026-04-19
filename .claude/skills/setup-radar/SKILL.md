@@ -51,7 +51,7 @@ If the user wants Gmail:
 ### 4. Output
 Explain the default to the user before asking:
 
-> "By default, results go to a local SQLite database and you browse them through a Streamlit dashboard (`streamlit run app.py`). The dashboard lets you filter, mark companies as Interested / Not Interested / Applied, and find warm intros. This works out of the box with no extra setup.
+> "By default, results go to a local SQLite database and you browse them through a Streamlit dashboard (`startup-radar serve`). The dashboard lets you filter, mark companies as Interested / Not Interested / Applied, and find warm intros. This works out of the box with no extra setup.
 >
 > You can optionally also mirror results to a Google Sheet — useful if you want to share the list with a mentor or access it from your phone. This is opt-in and requires the same Google OAuth as the Gmail source."
 
@@ -73,7 +73,7 @@ Ask how they want to run the daily pipeline. Options:
 | **Windows Task Scheduler** | Windows users, no GitHub | Point them at `scheduling/windows_task.md`. |
 | **macOS launchd** | Mac users, no GitHub | Point them at `scheduling/launchd.plist.template`. |
 | **Linux cron** | Linux users, no GitHub | Point them at `scheduling/crontab.example`. |
-| **Manual** | Ad-hoc | Just run `python daily_run.py` when they want to. |
+| **Manual** | Ad-hoc | Just run `startup-radar run --scheduled` when they want to. |
 
 ### 7. DeepDive fit criteria
 - Walk through the `deepdive.fit_factors` weights (high/medium/low for: industry_match, funding_stage, location, role_fit_signals, founder_pedigree, vc_tier).
@@ -86,10 +86,10 @@ Show the full generated YAML before writing. Confirm. Write to `config.yaml`.
 ### 9. First run & output
 After writing `config.yaml`:
 
-1. Install dependencies: run `pip install -r requirements.txt`
-2. **Run the pipeline once** — this is required so there's actual data to show: run `python main.py`. Do NOT skip this step. Wait for it to finish and confirm it ran successfully.
+1. Install dependencies: run `make install` (wraps `uv sync --all-extras`).
+2. **Run the pipeline once** — this is required so there's actual data to show: run `startup-radar run`. Do NOT skip this step. Wait for it to finish and confirm it ran successfully.
 3. Then ask: **"Would you like to see the Dashboard or Output?"**
-   - If user picks **Dashboard** (the default): run `streamlit run app.py`
+   - If user picks **Dashboard** (the default): run `startup-radar serve`
    - If user picks **Google Sheets** and Sheets is enabled: print the Sheet URL. If Sheets is not enabled, explain that they need to enable it first in `config.yaml` under `output.google_sheets`, and offer to set that up now. Then default to opening the Dashboard.
 
 Always run the pipeline first before showing output so the user sees real results, not an empty screen.

@@ -9,8 +9,8 @@
    - Daily, start time 08:00, recur every 1 day
 5. **Actions** tab → New:
    - Action: Start a program
-   - Program/script: `python`
-   - Add arguments: `daily_run.py`
+   - Program/script: `startup-radar.exe` (full path to the venv's Scripts dir, e.g. `C:\Users\you\startup-radar-template\.venv\Scripts\startup-radar.exe`)
+   - Add arguments: `run --scheduled`
    - Start in: full path to this repo (e.g. `C:\Users\you\startup-radar-template`)
 6. **Conditions** tab:
    - Uncheck "Start the task only if the computer is on AC power" if you use a laptop

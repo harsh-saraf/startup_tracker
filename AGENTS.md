@@ -8,8 +8,10 @@
 |---|---|
 | Install runtime deps | `make install` |
 | Install dev deps | `make install-dev` |
-| Run pipeline once | `make run` (or `python main.py`) |
-| Open dashboard | `make serve` |
+| Run pipeline once | `make run` (or `uv run startup-radar run`) |
+| Scheduled run (cron/GH Actions) | `uv run startup-radar run --scheduled` |
+| Open dashboard | `make serve` (or `uv run startup-radar serve`) |
+| Research brief | `uv run startup-radar deepdive "Anthropic"` |
 | Lint | `make lint` |
 | Format in place | `make format` |
 | Tests | `make test` |
@@ -26,7 +28,7 @@
 ## Must NOT do
 - Do not edit `.env`, `credentials.json`, `token.json`, `uv.lock`, or `*.db` files.
 - Do not commit. Do not push. Do not force-push. Do not `rm -rf`. Surface the diff and let the user commit.
-- Do not add new top-level scripts; extend `main.py` or the (forthcoming) Typer CLI.
+- Do not add new top-level scripts; extend `startup_radar/cli.py` (the Typer CLI, since Phase 4).
 - Do not reintroduce `requirements.txt` — `pyproject.toml` + `uv.lock` are the source of truth (since Phase 2). Add deps via `uv add <pkg>`.
 - Do not add Postgres, alembic, async, or auth — explicitly out of scope (`docs/CRITIQUE_APPENDIX.md` §12).
 

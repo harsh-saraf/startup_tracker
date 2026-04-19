@@ -15,17 +15,16 @@ Single-user Python tool that aggregates startup-funding signals from RSS, Hacker
 ## Repo layout
 ```
 .
-├── main.py                                  # pipeline entry — Typer CLI lands Phase 4
-├── daily_run.py                             # cron wrapper with logging + 15-min timeout
 ├── app.py                                   # Streamlit dashboard (5 pages, single file; split Phase 11)
-├── deepdive.py                              # AI research brief generator (moves to startup_radar/research/ Phase 4)
 ├── database.py                              # SQLite layer (33 fns; moves to startup_radar/storage/ Phase 12)
 ├── filters.py                               # StartupFilter + JobFilter (moves Phase 5)
 ├── config_loader.py                         # YAML loader (pydantic schema replaces it Phase 5)
 ├── connections.py                           # LinkedIn CSV → tier-1/tier-2 (moves Phase 11)
 ├── startup_radar/                           # the package (created Phase 3)
+│   ├── cli.py                               # Typer CLI (Phase 4): run, serve, deepdive; `run --scheduled` is the cron entry
 │   ├── models.py                            # @dataclass Startup, JobMatch
 │   ├── parsing/{funding,normalize}.py       # AMOUNT_RE/STAGE_RE/COMPANY_*; normalize_company, dedup_key
+│   ├── research/deepdive.py                 # AI research brief generator (moved from root in Phase 4)
 │   └── sources/                             # Source ABC + per-source subclasses
 │       ├── base.py                          # Source ABC: name, enabled_key, fetch(cfg), healthcheck()
 │       ├── registry.py                      # SOURCES: dict[str, Source]
@@ -45,7 +44,7 @@ Target layout (Phase 11+) lives in `docs/PRODUCTION_REFACTOR_PLAN.md` §3.1.
 - **Must:** every source registers in `startup_radar/sources/registry.py`.
 - **Must:** funding regexes (`AMOUNT_RE`, `STAGE_RE`, `COMPANY_SUBJECT_RE`, `COMPANY_INLINE_RE`) live ONLY in `startup_radar/parsing/funding.py`. Never re-introduce duplicates per source.
 - **Must:** company-name normalization goes through `normalize_company` / `dedup_key` in `startup_radar/parsing/normalize.py`.
-- **Never:** `print()` outside `main.py`, `daily_run.py`, `deepdive.py`, or `tests/` — use `logging.getLogger(__name__)`.
+- **Never:** `print()` outside `startup_radar/cli.py`, `startup_radar/research/deepdive.py`, or `tests/` — use `logging.getLogger(__name__)`.
 - **Never:** `os.getenv()` outside `config_loader.py` (later: `startup_radar/config/`).
 - **Never:** edit `credentials.json`, `token.json`, `.env`, `uv.lock`, or `*.db` files.
 - **Never:** reintroduce `requirements.txt` — `pyproject.toml` + `uv.lock` are authoritative since Phase 2.
@@ -53,14 +52,16 @@ Target layout (Phase 11+) lives in `docs/PRODUCTION_REFACTOR_PLAN.md` §3.1.
 
 ## Common commands
 ```bash
-make lint           # ruff check
-make format         # ruff format (writes)
-make format-check   # ruff format --check (no writes)
-make test           # pytest
-make typecheck      # mypy
-make ci             # lint + format-check + typecheck + test
-make serve          # streamlit run app.py
-make run            # python main.py
+make lint                        # ruff check
+make format                      # ruff format (writes)
+make format-check                # ruff format --check (no writes)
+make test                        # pytest
+make typecheck                   # mypy
+make ci                          # lint + format-check + typecheck + test
+make serve                       # uv run startup-radar serve
+make run                         # uv run startup-radar run
+uv run startup-radar run --scheduled      # cron/launchd mode (logs + 15-min timeout)
+uv run startup-radar deepdive "Anthropic" # research brief .docx
 ```
 
 ## Gotchas
@@ -71,6 +72,8 @@ make run            # python main.py
 - OAuth scopes for Gmail (`gmail.readonly`) and Sheets (`spreadsheets`) are merged into a single `token.json` — Phase 0 fix.
 - Dedup key strips legal suffixes (`inc`, `llc`, `corp`, `gmbh`, `labs`, etc.) — see `LEGAL_SUFFIX_RE` in `startup_radar/parsing/normalize.py`. Real failure mode is "OpenAI" vs "Open AI Inc.", not whitespace.
 - `parse_amount_musd("$2.5M") -> 2.5` lives in `startup_radar/parsing/funding.py` but is NOT yet wired into `filters.py` (which keeps its own copy until Phase 5).
+- CLI entry-point is registered via `[project.scripts]` in `pyproject.toml` and the `startup_radar.cli:app` shim — `uv sync --all-extras` refreshes it after edits to `cli.py` are not needed (editable install), but adding/removing commands does require a re-sync to refresh the `startup-radar` script wrapper.
+- Version is derived by `setuptools-scm` from the git tag history (`phase-*` tags yield dev-style versions; `fallback_version = "0.1.0"` for source tarballs).
 
 ## @import references
 For source-author conventions: @.claude/rules/sources.md

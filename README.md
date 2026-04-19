@@ -89,7 +89,7 @@ The dashboard opens in your web browser. From here you can:
 To reopen the dashboard later, go to the project folder in your terminal and run:
 
 ```
-streamlit run app.py
+startup-radar serve
 ```
 
 ## Where does the data come from?
@@ -122,7 +122,7 @@ During setup, Claude will ask how you want to schedule automatic daily runs. Opt
 - **Windows Task Scheduler** — runs on your PC at a set time each day
 - **Mac launchd** — same idea, for Mac
 - **Linux cron** — same idea, for Linux
-- **Manual** — just run `python daily_run.py` whenever you want
+- **Manual** — just run `startup-radar run --scheduled` whenever you want
 
 ## Customizing with Claude Code
 
@@ -147,10 +147,10 @@ Each daily run writes a log file to `logs/`. If something isn't working, check t
 |---|---|
 | `/setup-radar` not recognized | Make sure you ran `claude` from inside the `startup-radar-template` folder |
 | No results after running the pipeline | Your filters might be too strict — try broadening your industries or locations in `config.yaml` |
-| Gmail stopped working | Your Google login expired — delete `token.json` and run `python main.py` to re-login |
+| Gmail stopped working | Your Google login expired — delete `token.json` and run `startup-radar run` to re-login |
 | Dashboard won't open | Make sure you installed dependencies: `make install` (or `uv sync --all-extras`) |
 
-For real-time troubleshooting, run `python main.py` in your terminal — it prints each step as it happens.
+For real-time troubleshooting, run `startup-radar run` in your terminal — it prints each step as it happens.
 
 ## License
 

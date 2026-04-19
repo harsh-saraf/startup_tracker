@@ -21,7 +21,7 @@ PY_FILES=$(echo "${CHANGED}" | grep -E '\.py$' || true)
 
 # 1. print() in library code
 if [ -n "${PY_FILES}" ]; then
-  LIBRARY_PY=$(echo "${PY_FILES}" | grep -Ev '^(main\.py|daily_run\.py|deepdive\.py|tests/|\.claude/)' || true)
+  LIBRARY_PY=$(echo "${PY_FILES}" | grep -Ev '^(startup_radar/cli\.py|startup_radar/research/deepdive\.py|tests/|\.claude/)' || true)
   if [ -n "${LIBRARY_PY}" ]; then
     PRINTS=$(echo "${LIBRARY_PY}" | xargs grep -lE '^[^#]*\bprint\(' 2>/dev/null | head -3 || true)
     if [ -n "${PRINTS}" ]; then
@@ -70,11 +70,18 @@ BLOCK: requirements.txt edited but pyproject.toml exists. Edit pyproject.toml; r
   fi
 fi
 
-# 6. uv.lock manual edits
+# 6. uv.lock manual edits — block only if uv.lock is the *only* change
+#    (hand-edit signal). Legitimate regeneration via `uv add`/`uv sync`
+#    also touches pyproject.toml (or other code), so we skip the block
+#    when anything else changed. The Edit/Write(uv.lock) deny in
+#    settings.json is the primary guardrail; this is defence in depth.
 if echo "${CHANGED}" | grep -q '^uv\.lock$'; then
-  ISSUES="${ISSUES}
-BLOCK: uv.lock should not be hand-edited. Run \`uv lock\` to regenerate."
-  BLOCK=1
+  NON_LOCK=$(echo "${CHANGED}" | grep -v '^uv\.lock$' || true)
+  if [ -z "${NON_LOCK}" ]; then
+    ISSUES="${ISSUES}
+BLOCK: uv.lock changed alone — looks hand-edited. Run \`uv lock\` to regenerate."
+    BLOCK=1
+  fi
 fi
 
 # 7. Run lint (NOT full CI). Fast, ≤5s.

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "startup-radar"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Personal startup discovery radar with Streamlit dashboard"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +19,7 @@ dependencies = [
     "streamlit>=1.30.0",
     "duckduckgo-search>=6.0.0",
     "python-docx>=1.1.0",
+    "typer>=0.12",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +28,14 @@ google = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
 ]
+
+[project.scripts]
+startup-radar = "startup_radar.cli:app"
+
+[tool.setuptools_scm]
+fallback_version = "0.1.0"
+# Existing tags are phase-0..3 (not semver); scm will emit dev-style versions
+# like "0.1.0.dev{N}+g{sha}" from HEAD. Fallback keeps source-tarball builds sane.
 
 [tool.uv]
 dev-dependencies = [
@@ -42,9 +51,10 @@ packages = [
     "startup_radar",
     "startup_radar.sources",
     "startup_radar.parsing",
+    "startup_radar.research",
 ]
 py-modules = [
-    "main", "daily_run", "app", "deepdive",
+    "app",
     "database", "filters",
     "config_loader", "connections",
 ]

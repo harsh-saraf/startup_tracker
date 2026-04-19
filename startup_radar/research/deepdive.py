@@ -4,14 +4,13 @@ Uses DuckDuckGo for web research and python-docx for document generation.
 Reads fit criteria from config.yaml so scoring is personalized.
 
 Usage:
-    python deepdive.py "Company Name"
+    startup-radar deepdive "Company Name"
 
 Also callable from the Streamlit dashboard and the /deepdive Claude Code skill.
 """
 
 import json
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -21,7 +20,7 @@ from docx.shared import Inches, Pt, RGBColor
 
 from config_loader import load_config
 
-REPORTS_DIR = Path(__file__).parent / "reports"
+REPORTS_DIR = Path.cwd() / "reports"
 REPORTS_DIR.mkdir(exist_ok=True)
 
 
@@ -347,10 +346,3 @@ def generate(company_name: str) -> Path:
         save_investors(company_name, info["investors"])
     print(f"Report saved: {path}")
     return path
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print('Usage: python deepdive.py "Company Name"')
-        sys.exit(1)
-    generate(" ".join(sys.argv[1:]))

@@ -802,7 +802,13 @@ elif page == "Company DeepDive":
             else:
                 if st.button("Generate DeepDive Report", key="deepdive_btn"):
                     proc = subprocess.Popen(
-                        [sys.executable or "python", "deepdive.py", selected],
+                        [
+                            sys.executable or "python",
+                            "-m",
+                            "startup_radar.cli",
+                            "deepdive",
+                            selected,
+                        ],
                         cwd=str(PROJECT_DIR),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,

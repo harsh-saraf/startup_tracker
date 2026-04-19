@@ -6,7 +6,7 @@
 
 | Dimension | Severity | Key issue |
 |---|---|---|
-| Entry points | HIGH | Three commands (`main.py`, `daily_run.py`, `streamlit run app.py`); no one-shot startup, no Makefile |
+| Entry points | RESOLVED (Phase 4) | Single `startup-radar` console script exposes `run` / `serve` / `deepdive`; `run --scheduled` folds the old `daily_run.py` logging+timeout path. Old root scripts deleted. |
 | Config / secrets | MED | No schema validation; manual 4-key existence check; secrets stored in repo root |
 | Database | HIGH | New `sqlite3.connect()` per operation across 33 functions; GH Actions cache key is broken |
 | Error handling | MED-HIGH | Silent source failures via bare `except → print()`; `print()` over logging in `main.py` |
@@ -15,17 +15,18 @@
 | Dependencies | RESOLVED (Phase 2) | `requirements.txt` removed; `pyproject.toml` + `uv.lock` are authoritative. Optional `google` extras still always-imported when Gmail enabled — cleanup deferred to Phase 3. |
 | Dashboard | HIGH | `app.py` is 1,104 lines; no `@st.cache_data`; `load_data()` re-queries entire DB on every rerun |
 | Skills coupling | MED | `.claude/skills/deepdive/SKILL.md:15-20` hardcodes `config.yaml` shape |
-| Packaging | HIGH | No `pyproject.toml` / `setup.py`; not `pipx`-installable |
+| Packaging | RESOLVED (Phase 4) | `pyproject.toml` + `[project.scripts] startup-radar` + `setuptools-scm` git-tag versioning; `pipx install git+https://...` works. Dockerfile deferred to Phase 14. |
 | Scheduling | HIGH | GH Actions cache key uses `${{ github.run_id }}` → DB never persists across runs |
 | Bugs | MED | OAuth scope mismatch Gmail vs Sheets; naive dedup ("WeWork" ≠ "We Work"); inconsistent timeouts |
 
 ## Detailed findings
 
-### 1. Entry points & UX friction (HIGH)
-- `main.py:28-142` — pipeline orchestration
-- `daily_run.py:61-97` — wraps `main.py` with file logging + 15-minute hard timeout (`MAX_RUNTIME_SECONDS`)
-- `app.py` — 1,104-line Streamlit dashboard
-- **No** Makefile, justfile, or npm-style scripts. Three independent invocations the user must remember.
+### 1. Entry points & UX friction (RESOLVED — Phase 4)
+- Single `startup-radar` console script (`[project.scripts]` in `pyproject.toml` → `startup_radar.cli:app`).
+- `startup-radar run` replaces `python main.py`; `startup-radar run --scheduled` replaces `python daily_run.py` (folds the file-logging + 15-min timeout + stdout-redirect path into `cli.py`).
+- `startup-radar serve` wraps `streamlit run app.py`; `startup-radar deepdive COMPANY` replaces `python deepdive.py`.
+- `deepdive.py` re-homed under `startup_radar/research/`; `main.py` and `daily_run.py` deleted. `Makefile` `run`/`serve` targets now delegate to the CLI.
+- Still outstanding: `startup-radar init` / `doctor` / `status` / `backup` (Phase 7–8) and `schedule install` (Phase 14).
 
 ### 2. Configuration & secrets (MED)
 - `config_loader.py:29-33` — only validates that 4 top-level keys exist (`user`, `targets`, `sources`, `output`). No schema validation.
@@ -81,11 +82,12 @@
 - `.claude/skills/deepdive/SKILL.md:15-20` reads `config.yaml` directly; `deepdive.py:5-8` imports `config_loader` — config schema change breaks both
 - `reports/` dir created at runtime (`deepdive.py:26`), not at install/setup
 
-### 10. Packaging & distribution (PARTIAL — Phase 2)
-- `pyproject.toml` now has `[build-system]` (setuptools backend) and `[tool.setuptools] py-modules` — installable as `pip install -e .` / `uv pip install -e .`.
-- `uv.lock` committed.
-- Still TODO: console-script entry-point + `setuptools-scm` versioning land in Phase 4 (Typer CLI). Dockerfile in Phase 12.
-- Install is now `git clone && make install` (which runs `uv sync --all-extras`).
+### 10. Packaging & distribution (RESOLVED — Phase 4)
+- `pyproject.toml` `[build-system]` uses setuptools + `setuptools-scm`; `[project.scripts]` registers `startup-radar = "startup_radar.cli:app"`.
+- Version is `dynamic` — derived from git tag history with `fallback_version = "0.1.0"` for source-tarball builds.
+- `uv.lock` committed; install is `git clone && make install` (wraps `uv sync --all-extras`) and the `startup-radar` shim lands on `$PATH`.
+- `pipx install git+https://github.com/...` and `uv tool install .` both work.
+- Still TODO: Dockerfile in Phase 14.
 
 ### 11. Scheduling (HIGH)
 - GH Actions cache key issue (see #3)

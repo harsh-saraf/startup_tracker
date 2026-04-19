@@ -70,7 +70,7 @@ Don't commit `uv.lock` AND a `requirements.txt`. Pick `uv.lock` as source of tru
 | 3 | `.claude/` harness: settings.json + sane hooks + subagents | 0.5 day | Lets you safely do everything below. |
 | 4 | `pyproject.toml` + `uv` + `setuptools-scm` + entry-point | 1 day | DX foundation. |
 | 5 | ✅ Source ABC + centralized parsing module + registry | 0.5 day | **DONE Phase 3** — `startup_radar/sources/{base,registry}.py` + `parsing/{funding,normalize}.py`. Tag: `phase-3`. |
-| 6 | Typer CLI built against the new Source registry | 1 day | Order matters: after #5 to avoid rewriting source-orchestration. |
+| 6 | ✅ Typer CLI + research/ subpackage + scm versioning | 1 day | **DONE Phase 4** — `startup-radar run|serve|deepdive`; `run --scheduled` folds the old `daily_run.py` logging+timeout; `deepdive.py` relocated to `startup_radar/research/`; `[project.scripts]` + `setuptools-scm` wired. Tag: `phase-4`. |
 | 7 | Pydantic config + `.env` + `setuptools-scm` | 0.5 day | |
 | 8 | `startup-radar backup` + `doctor` + `status` | 0.5 day | Resilience. |
 | 9 | GH Actions DB persistence via commit-to-data-branch | 1 day | Pick **one** option. |

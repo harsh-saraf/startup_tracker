@@ -1,0 +1,39 @@
+# AGENTS.md
+
+> Startup Radar — a single-user Python tool that aggregates startup-funding signals (RSS, HN, SEC EDGAR, optional Gmail), filters them, and serves a Streamlit dashboard.
+
+## Commands
+
+| Task | Command |
+|---|---|
+| Install runtime deps | `make install` |
+| Install dev deps | `make install-dev` |
+| Run pipeline once | `make run` (or `python main.py`) |
+| Open dashboard | `make serve` |
+| Lint | `make lint` |
+| Format in place | `make format` |
+| Tests | `make test` |
+| Full local CI | `make ci` |
+| Quick env check | `make doctor` |
+
+## Must do
+- Use `make` targets when one exists; never reinvent.
+- Use a logger; never `print()` in library code (`sources/`, `sinks/`, `database.py`, `filters.py`, `connections.py`).
+- Wrap Streamlit DB reads in `@st.cache_data(ttl=60)`.
+- Set `timeout=` on every `requests`/`httpx` call.
+- Run `make ci` before declaring work done.
+
+## Must NOT do
+- Do not edit `.env`, `credentials.json`, `token.json`, `uv.lock`, or `*.db` files.
+- Do not commit. Do not push. Do not force-push. Do not `rm -rf`. Surface the diff and let the user commit.
+- Do not add new top-level scripts; extend `main.py` or the (forthcoming) Typer CLI.
+- Do not edit `requirements.txt` once Phase 4 makes `pyproject.toml` source of truth.
+- Do not add Postgres, alembic, async, or auth — explicitly out of scope (`docs/CRITIQUE_APPENDIX.md` §12).
+
+## Subagents (.claude/agents/)
+- `source-implementer` — scaffold a new data source under `sources/`.
+- `filter-tuner` — diagnose `filters.py` precision/recall against fixtures (read-only).
+- `dashboard-page` — scaffold a new Streamlit page with caching + state conventions.
+
+## More context
+Claude Code-specific config and detailed conventions live in `.claude/`. See `.claude/CLAUDE.md` (loaded into every session) and `.claude/rules/*.md` (auto-loaded by file path).

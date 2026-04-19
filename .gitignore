@@ -34,3 +34,9 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# Claude Code local overrides
+.claude/settings.local.json
+
+# ruff cache
+.ruff_cache/

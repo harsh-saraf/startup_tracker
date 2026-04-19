@@ -208,6 +208,29 @@ The `vcr_config` fixture records once (first run) and replays thereafter. In CI 
 
 **SEC EDGAR** requires a `User-Agent` with contact info — set it via the `_USER_AGENT` constant in `startup_radar/sources/sec_edgar.py` before recording. The cassette scrubber replaces it with `startup-radar-test` on disk; do not commit a cassette containing a real email address.
 
+### Dashboard layout
+
+The Streamlit dashboard lives under `startup_radar/web/` as a native multi-page app:
+
+```
+startup_radar/web/
+├── app.py                 # shell: page-config, config load, DB init, sidebar
+├── cache.py               # @st.cache_data(ttl=60) wrappers — every page imports reads from here
+├── state.py               # session-state / widget key constants (collision-asserted at import)
+├── lookup.py              # DuckDuckGo company lookup (optional dep)
+├── connections.py         # LinkedIn CSV tier-1/tier-2 helpers
+└── pages/
+    ├── 1_dashboard.py     # KPIs + today's companies + today's job matches + follow-ups due
+    ├── 2_companies.py     # wishlist / interested / not-interested / uncategorized tables
+    ├── 3_jobs.py          # job-match buckets with inline editor
+    ├── 4_deepdive.py      # AI research brief + warm-intro lookup
+    └── 5_tracker.py       # application pipeline + activity log + rejected
+```
+
+Add a new page by dropping `N_name.py` into `pages/`; Streamlit discovers it automatically. Define any session-state / widget keys in `state.py` first — inline string literals in `pages/*` are forbidden (caught by `tests/unit/test_web_smoke.py`).
+
+Launch with `uv run startup-radar serve` (or, for dev: `uv run streamlit run startup_radar/web/app.py`).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

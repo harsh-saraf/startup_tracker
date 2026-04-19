@@ -61,7 +61,7 @@ Then ask:
 
 ### 5. LinkedIn connections (optional)
 - "Do you want to import your LinkedIn connections? The dashboard will flag startups where a 1st-degree connection works, and the DeepDive skill can surface intros via the company's investors."
-- If yes: walk through exporting from https://www.linkedin.com/mypreferences/d/download-my-data (Connections-only export is fastest, ~10 min). Place the CSV at the path they choose and update `config.yaml`. Offer to import it immediately via `python -c "from connections import import_from_csv; import_from_csv('PATH')"`.
+- If yes: walk through exporting from https://www.linkedin.com/mypreferences/d/download-my-data (Connections-only export is fastest, ~10 min). Place the CSV at the path they choose and update `config.yaml`. Offer to import it immediately via `uv run python -c "from startup_radar.web.connections import import_from_csv; import_from_csv('PATH')"` — or simply upload the CSV through the dashboard sidebar.
 
 ### 6. Scheduling
 Ask how they want to run the daily pipeline. Options:

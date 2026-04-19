@@ -69,8 +69,10 @@ class _LogStream(io.TextIOBase):
         pass
 
 
-def _pipeline() -> int:
-    """The actual pipeline. Mirrors pre-Phase-4 main.py:run()."""
+def pipeline() -> int:
+    """Run the discovery pipeline once. Public API — also called by the
+    ``Run pipeline now`` button in ``startup_radar.web.app``.
+    """
     import database
     from startup_radar.config import load_config
     from startup_radar.filters import StartupFilter
@@ -164,7 +166,7 @@ def run(
 ) -> None:
     """Run the discovery pipeline once."""
     if not scheduled:
-        raise typer.Exit(code=_pipeline())
+        raise typer.Exit(code=pipeline())
 
     logger = _setup_scheduled_logging()
     logger.info("Startup Radar scheduled run starting")
@@ -180,7 +182,7 @@ def run(
     old_stdout = sys.stdout
     sys.stdout = _LogStream(logger)
     try:
-        rc = _pipeline()
+        rc = pipeline()
         sys.stdout = old_stdout
         timer.cancel()
         logger.info("Scheduled run completed successfully")
@@ -207,7 +209,7 @@ def serve(
     import subprocess
 
     repo_root = Path(__file__).resolve().parent.parent
-    app_path = repo_root / "app.py"
+    app_path = repo_root / "startup_radar" / "web" / "app.py"
     cmd = [sys.executable, "-m", "streamlit", "run", str(app_path), "--server.port", str(port)]
     raise typer.Exit(code=subprocess.call(cmd))
 

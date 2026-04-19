@@ -15,9 +15,7 @@ Single-user Python tool that aggregates startup-funding signals from RSS, Hacker
 ## Repo layout
 ```
 .
-├── app.py                                   # Streamlit dashboard (5 pages, single file; split Phase 11)
-├── database.py                              # SQLite layer (33 fns; moves to startup_radar/storage/ Phase 12)
-├── connections.py                           # LinkedIn CSV → tier-1/tier-2 (moves Phase 11)
+├── database.py                              # SQLite layer (33 fns; moves to startup_radar/storage/ Phase 10)
 ├── startup_radar/                           # the package (created Phase 3)
 │   ├── cli.py                               # Typer CLI (Phase 4): run, serve, deepdive; `run --scheduled` is the cron entry
 │   ├── models.py                            # @dataclass Startup, JobMatch
@@ -25,20 +23,27 @@ Single-user Python tool that aggregates startup-funding signals from RSS, Hacker
 │   ├── config/{schema,loader}.py            # pydantic AppConfig (Phase 5) — single source of truth for config.yaml
 │   ├── parsing/{funding,normalize}.py       # AMOUNT_RE/STAGE_RE/COMPANY_*; normalize_company, dedup_key
 │   ├── research/deepdive.py                 # AI research brief generator (moved from root in Phase 4)
-│   └── sources/                             # Source ABC + per-source subclasses
-│       ├── base.py                          # Source ABC: name, enabled_key, fetch(cfg), healthcheck()
-│       ├── registry.py                      # SOURCES: dict[str, Source]
-│       └── {rss,hackernews,sec_edgar,gmail}.py
+│   ├── sources/                             # Source ABC + per-source subclasses
+│   │   ├── base.py                          # Source ABC: name, enabled_key, fetch(cfg), healthcheck()
+│   │   ├── registry.py                      # SOURCES: dict[str, Source]
+│   │   └── {rss,hackernews,sec_edgar,gmail}.py
+│   └── web/                                 # Streamlit dashboard (split Phase 9)
+│       ├── app.py                           # ~80-line shell: page-config, config load, DB init, sidebar
+│       ├── cache.py                         # @st.cache_data(ttl=60) wrappers around database.*
+│       ├── state.py                         # session-state + widget key constants (collision-asserted at import)
+│       ├── lookup.py                        # DuckDuckGo company lookup (hoisted DDGS import)
+│       ├── connections.py                   # LinkedIn CSV → tier-1/tier-2 helpers (moved from repo root in Phase 9)
+│       └── pages/{1_dashboard,2_companies,3_jobs,4_deepdive,5_tracker}.py
 ├── sinks/google_sheets.py
 ├── scheduling/                              # cron, launchd, Windows Task templates
 ├── backups/                                 # local tarballs from `startup-radar backup` (gitignored, Phase 6)
-├── tests/test_smoke.py                      # Phase 0 placeholder; real coverage Phase 10
-├── tests/parsing/{test_funding,test_normalize}.py  # Phase 3
-├── tests/test_cli_{backup,doctor,status}.py # Phase 6 — resilience CLI tests
+├── tests/unit/test_web_smoke.py             # Phase 9 — AppTest shell smoke + page discovery + state collision
+├── tests/unit/{test_cli_backup,test_cli_doctor,test_cli_status}.py  # Phase 6 — resilience CLI tests
+├── tests/integration/                       # Phase 8 — vcrpy cassette-backed per-source tests
 ├── docs/                                    # PRODUCTION_REFACTOR_PLAN, CRITIQUE_APPENDIX, AUDIT_FINDINGS, plans/phase-N
 └── .claude/                                 # this directory — harness
 ```
-Target layout (Phase 11+) lives in `docs/PRODUCTION_REFACTOR_PLAN.md` §3.1.
+Target layout (Phase 10+) lives in `docs/PRODUCTION_REFACTOR_PLAN.md` §3.1.
 
 ## Core invariants
 - **Must:** every new HTTP call uses `timeout=` (or shared `httpx.Client` once it lands). `feedparser` is the exception — see `startup_radar/sources/rss.py` (sets `socket.setdefaulttimeout(20)` at module load).
@@ -73,7 +78,9 @@ uv run startup-radar backup [--no-secrets] [--db-only] # local tar.gz of DB + co
 - `data` branch (GH Actions DB store, Phase 7) — NEVER delete, rebase, or force-push from a developer machine. The daily workflow writes to it; the weekly GC workflow is the only sanctioned force-pusher. To pull the prod DB locally: `git fetch origin data:data && git checkout data -- startup_radar.db`.
 - `feedparser` does NOT take a `timeout` kwarg — `startup_radar/sources/rss.py` uses `socket.setdefaulttimeout(20)` at module load.
 - SEC EDGAR requires `User-Agent: Name email@example.com` header AND ≤10 req/s.
-- Streamlit re-runs the entire script on every interaction — wrap DB reads in `@st.cache_data(ttl=60)` (already done at `app.py:59`).
+- Streamlit re-runs the entire script on every interaction — wrap DB reads in `@st.cache_data(ttl=60)` via `startup_radar/web/cache.py`. Writes invalidate immediately by calling `load_data.clear()` after the insert.
+- Dashboard sidebar (Run-pipeline button + LinkedIn uploader) lives ONLY in `startup_radar/web/app.py` (the shell). Native multi-page runs the shell on every page render, so sidebar code in the shell appears on every page — do NOT duplicate into pages.
+- Session-state / widget keys in `startup_radar/web/pages/*` go through `startup_radar/web/state.py` constants. `state.assert_no_collisions()` fires at import time; two constants pointing at the same string raise `AssertionError` before Streamlit loads.
 - GH Actions DB persistence uses commit-to-`data`-branch (Phase 7) — see `docs/ops/data-branch.md`. The old `actions/cache`-keyed-by-`run_id` scheme is gone.
 - OAuth scopes for Gmail (`gmail.readonly`) and Sheets (`spreadsheets`) are merged into a single `token.json` — Phase 0 fix.
 - Dedup key strips legal suffixes (`inc`, `llc`, `corp`, `gmbh`, `labs`, etc.) — see `LEGAL_SUFFIX_RE` in `startup_radar/parsing/normalize.py`. Real failure mode is "OpenAI" vs "Open AI Inc.", not whitespace.

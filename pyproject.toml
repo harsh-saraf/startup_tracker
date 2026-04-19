@@ -106,6 +106,7 @@ source = ["startup_radar"]
 omit = [
     "startup_radar/cli.py",
     "startup_radar/research/deepdive.py",
+    "startup_radar/web/*",
 ]
 
 [tool.coverage.report]

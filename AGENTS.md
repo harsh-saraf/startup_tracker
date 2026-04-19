@@ -27,7 +27,7 @@
 - Do not edit `.env`, `credentials.json`, `token.json`, `uv.lock`, or `*.db` files.
 - Do not commit. Do not push. Do not force-push. Do not `rm -rf`. Surface the diff and let the user commit.
 - Do not add new top-level scripts; extend `main.py` or the (forthcoming) Typer CLI.
-- Do not edit `requirements.txt` once Phase 4 makes `pyproject.toml` source of truth.
+- Do not reintroduce `requirements.txt` — `pyproject.toml` + `uv.lock` are the source of truth (since Phase 2). Add deps via `uv add <pkg>`.
 - Do not add Postgres, alembic, async, or auth — explicitly out of scope (`docs/CRITIQUE_APPENDIX.md` §12).
 
 ## Subagents (.claude/agents/)

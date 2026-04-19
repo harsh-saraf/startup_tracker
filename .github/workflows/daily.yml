@@ -15,10 +15,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: pip
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --all-extras
 
       - name: Restore database
         uses: actions/cache@v4
@@ -41,7 +45,7 @@ jobs:
           TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
 
       - name: Run pipeline
-        run: python daily_run.py
+        run: uv run python daily_run.py
 
       - name: Upload database artifact
         uses: actions/upload-artifact@v4

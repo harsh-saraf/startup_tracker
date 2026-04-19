@@ -38,7 +38,7 @@ For the company the user named:
 After research, write the list of investor company names to `reports/<CompanyName>_investors.json` so the Streamlit dashboard's tier-2 intro lookup can use them.
 
 ## Generate the .docx
-Use `python-docx` (already in `requirements.txt`).
+Use `python-docx` (already a project dep — see `pyproject.toml`).
 
 ### Sections (in order)
 1. **Header** — Company name, tagline, navy background, website + date subheader

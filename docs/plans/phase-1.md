@@ -101,7 +101,7 @@ Use bullets, tables, code fences. No prose paragraphs.
 - Never: `os.getenv()` outside `config_loader.py` (later: `startup_radar/config/`).
 - Never: edit `credentials.json`, `token.json`, `.env`, or `*.db` files.
 - Never: edit `uv.lock` by hand — regenerate via `uv lock`.
-- Never: edit `requirements.txt` once Phase 4 migrates to pyproject as source of truth.
+- Never: reintroduce `requirements.txt` — `pyproject.toml` + `uv.lock` are authoritative since Phase 2.
 
 ### Section: Common commands
 ```bash
@@ -174,7 +174,7 @@ Purpose: read by Codex, Cursor, future tools. Mirrors `CLAUDE.md` essentials.
    - Do not edit `.env`, `credentials.json`, `token.json`, `uv.lock`, `*.db`.
    - Do not commit. Do not push. Do not force-push. Do not `rm -rf`.
    - Do not add new top-level scripts; extend `main.py` or the (forthcoming) Typer CLI.
-   - Do not edit `requirements.txt` once Phase 4 makes `pyproject.toml` source of truth.
+   - Do not reintroduce `requirements.txt` — `pyproject.toml` + `uv.lock` are authoritative since Phase 2.
 5. **Agent index** — three lines pointing at `.claude/agents/{source-implementer,filter-tuner,dashboard-page}/SKILL.md`.
 6. **Pointer**: "Claude Code-specific config lives in `.claude/`. See `.claude/CLAUDE.md`."
 

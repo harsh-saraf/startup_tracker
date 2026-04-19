@@ -48,10 +48,10 @@ cd startup-radar-template
 ```
 
 ```
-pip install -r requirements.txt
+make install
 ```
 
-The first line downloads the project to your computer. The second line moves you into the project folder. The third line installs the libraries the project needs.
+The first line downloads the project to your computer. The second line moves you into the project folder. The third line installs the libraries the project needs (via `uv sync --all-extras`).
 
 ### Step 2: Run the setup wizard
 
@@ -148,7 +148,7 @@ Each daily run writes a log file to `logs/`. If something isn't working, check t
 | `/setup-radar` not recognized | Make sure you ran `claude` from inside the `startup-radar-template` folder |
 | No results after running the pipeline | Your filters might be too strict — try broadening your industries or locations in `config.yaml` |
 | Gmail stopped working | Your Google login expired — delete `token.json` and run `python main.py` to re-login |
-| Dashboard won't open | Make sure you installed dependencies: `pip install -r requirements.txt` |
+| Dashboard won't open | Make sure you installed dependencies: `make install` (or `uv sync --all-extras`) |
 
 For real-time troubleshooting, run `python main.py` in your terminal — it prints each step as it happens.
 

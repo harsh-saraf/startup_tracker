@@ -4,7 +4,7 @@ Single-user Python tool that aggregates startup-funding signals from RSS, Hacker
 
 ## Stack
 - Python ≥3.10 (`pyproject.toml`); eventual target 3.11.
-- Package manager: `pip` today; `uv` migration in Phase 4 (lockfile becomes source of truth).
+- Package manager: `uv` — `pyproject.toml` + `uv.lock` are the source of truth (Phase 2). Add deps via `uv add <pkg>`; never reintroduce `requirements.txt`.
 - DB: SQLite, single file (`startup_radar.db`).
 - Web: Streamlit (single-file `app.py`, ~1100 LOC; multi-page split in Phase 11).
 - HTTP: `requests` today; migrating to `httpx` in Phase 13.
@@ -40,7 +40,7 @@ Target layout (Phase 5+) lives in `docs/PRODUCTION_REFACTOR_PLAN.md` §3.1.
 - **Never:** `print()` outside `main.py`, `daily_run.py`, `deepdive.py`, or `tests/` — use a logger.
 - **Never:** `os.getenv()` outside `config_loader.py` (later: `startup_radar/config/`).
 - **Never:** edit `credentials.json`, `token.json`, `.env`, `uv.lock`, or `*.db` files.
-- **Never:** edit `requirements.txt` once Phase 4 migration completes.
+- **Never:** reintroduce `requirements.txt` — `pyproject.toml` + `uv.lock` are authoritative since Phase 2.
 - **Never:** add Postgres, alembic, async pipeline, or dashboard auth — out of scope per `docs/CRITIQUE_APPENDIX.md` §12.
 
 ## Common commands

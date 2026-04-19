@@ -12,7 +12,7 @@
 | Error handling | MED-HIGH | Silent source failures via bare `except → print()`; `print()` over logging in `main.py` |
 | Code structure | LOW-MED | No `Source` ABC; `_AMOUNT_RE`/`_STAGE_RE` duplicated in 4 files |
 | Testing | HIGH | Zero tests; no `tests/`, no `conftest.py`, no CI validation workflow |
-| Dependencies | MED | Floating versions in `requirements.txt`; optional deps always-imported |
+| Dependencies | RESOLVED (Phase 2) | `requirements.txt` removed; `pyproject.toml` + `uv.lock` are authoritative. Optional `google` extras still always-imported when Gmail enabled — cleanup deferred to Phase 3. |
 | Dashboard | HIGH | `app.py` is 1,104 lines; no `@st.cache_data`; `load_data()` re-queries entire DB on every rerun |
 | Skills coupling | MED | `.claude/skills/deepdive/SKILL.md:15-20` hardcodes `config.yaml` shape |
 | Packaging | HIGH | No `pyproject.toml` / `setup.py`; not `pipx`-installable |
@@ -57,10 +57,11 @@
 - `.github/workflows/daily.yml` is the cron job, not a CI workflow
 - No linting, no type-checking, no unit-test stage
 
-### 7. Dependency management (MED)
-- `requirements.txt` (15 lines) pins major, floats minor/patch (e.g. `pyyaml>=6.0`)
-- Google libs listed as "optional" in comment at lines 11-14 but always imported when Gmail enabled — `ModuleNotFoundError` at runtime if missing
-- No `pyproject.toml`, no extras groups, no lockfile
+### 7. Dependency management (RESOLVED — Phase 2)
+- `requirements.txt` removed; `pyproject.toml` + `uv.lock` are the source of truth.
+- Dev deps under `[tool.uv] dev-dependencies`; `google` deps under `[project.optional-dependencies]`.
+- Lockfile committed; `uv sync --all-extras` is the install command.
+- Outstanding: optional `google` deps still imported eagerly when Gmail enabled — defer to Phase 3 with the Source ABC.
 
 ### 8. Dashboard `app.py` (HIGH)
 - 1,104 lines, only 7 named functions; rest is procedural across 5 if-page blocks (line 203+)
@@ -77,11 +78,11 @@
 - `.claude/skills/deepdive/SKILL.md:15-20` reads `config.yaml` directly; `deepdive.py:5-8` imports `config_loader` — config schema change breaks both
 - `reports/` dir created at runtime (`deepdive.py:26`), not at install/setup
 
-### 10. Packaging & distribution (HIGH)
-- No `setup.py`, `pyproject.toml`, `poetry.lock`
-- Not installable as a package. No `pipx install`. No `pip install -e .`.
-- No Dockerfile, no devcontainer
-- Install is `git clone && pip install -r requirements.txt`
+### 10. Packaging & distribution (PARTIAL — Phase 2)
+- `pyproject.toml` now has `[build-system]` (setuptools backend) and `[tool.setuptools] py-modules` — installable as `pip install -e .` / `uv pip install -e .`.
+- `uv.lock` committed.
+- Still TODO: console-script entry-point + `setuptools-scm` versioning land in Phase 4 (Typer CLI). Dockerfile in Phase 12.
+- Install is now `git clone && make install` (which runs `uv sync --all-extras`).
 
 ### 11. Scheduling (HIGH)
 - GH Actions cache key issue (see #3)

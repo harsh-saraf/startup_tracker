@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "startup-radar"
 version = "0.1.0"
@@ -23,12 +27,21 @@ google = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
 ]
-dev = [
+
+[tool.uv]
+dev-dependencies = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
     "ruff>=0.5",
     "mypy>=1.10",
     "vcrpy>=6.0",
+]
+
+[tool.setuptools]
+py-modules = [
+    "main", "daily_run", "app", "deepdive",
+    "database", "filters", "models",
+    "config_loader", "connections",
 ]
 
 [tool.ruff]

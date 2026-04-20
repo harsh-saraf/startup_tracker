@@ -1,0 +1,24 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - startup-radar-test
+    method: GET
+    uri: https://hn.algolia.com/api/v1/search_by_date?query=raised+Series+A&tags=story&numericFilters=created_at_i%3E0&hitsPerPage=50
+  response:
+    body:
+      string: '{"hits":[{"title":"Acme raises $5M Series A to reinvent widgets","url":"https://example.com/acme","objectID":"111","created_at":"2026-04-18T10:00:00.000Z"},{"title":"Globex secures $12M Series B led by Sequoia","url":"https://example.com/globex","objectID":"222","created_at":"2026-04-18T12:00:00.000Z"},{"title":"Initech lands $3.5M Seed round","url":"https://example.com/initech","objectID":"333","created_at":"2026-04-19T09:00:00.000Z"},{"title":"Umbrella closes $20M Series C","url":"https://example.com/umbrella","objectID":"444","created_at":"2026-04-19T11:00:00.000Z"}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+version: 1

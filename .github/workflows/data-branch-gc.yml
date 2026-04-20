@@ -1,0 +1,40 @@
+name: Data-branch GC
+
+on:
+  schedule:
+    - cron: '0 9 * * 0'     # Sundays 09:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout data branch
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: .data
+        continue-on-error: true
+
+      - name: Force-push fresh orphan commit
+        run: |
+          if [ ! -f ".data/startup_radar.db" ]; then
+            echo "No data branch or no DB; nothing to GC."
+            exit 0
+          fi
+          cd .data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # New orphan history with only the current DB.
+          git checkout --orphan data-new
+          git rm -rf --cached . || true
+          git add startup_radar.db
+          printf '# startup-radar data branch\n\nOrphan branch holding the latest pipeline DB. Weekly GCd. See docs/operations/data-branch.md on main.\n' > README.md
+          git add README.md
+          git commit -m "chore(data): weekly GC $(date -u +%Y-%m-%d)"
+          git branch -M data-new data
+          git push --force origin data

@@ -13,9 +13,9 @@ macOS launchd example. Steps:
     <string>com.startupradar.daily</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/env</string>
-        <string>python3</string>
-        <string>PATH_TO_REPO/daily_run.py</string>
+        <string>PATH_TO_VENV/bin/startup-radar</string>
+        <string>run</string>
+        <string>--scheduled</string>
     </array>
     <key>WorkingDirectory</key>
     <string>PATH_TO_REPO</string>

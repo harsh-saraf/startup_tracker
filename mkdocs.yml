@@ -1,0 +1,91 @@
+site_name: Startup Radar
+site_description: Personal startup discovery radar — RSS/HN/EDGAR/Gmail → SQLite → Streamlit.
+site_url: https://xavierahojjx-afk.github.io/startup-radar-template/
+repo_url: https://github.com/xavierahojjx-afk/startup-radar-template
+repo_name: startup-radar-template
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+not_in_nav: |
+  /plans/*.md
+
+exclude_docs: |
+  README.md
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - include-markdown
+  - git-revision-date-localized:
+      type: date
+      fallback_to_build_date: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Architecture: architecture.md
+  - Contributing:
+      - Overview: contributing/index.md
+      - Conventions: contributing/conventions.md
+  - Sources:
+      - Overview: sources/index.md
+      - Adding a source: sources/adding-a-source.md
+      - RSS: sources/rss.md
+      - Hacker News: sources/hackernews.md
+      - SEC EDGAR: sources/sec-edgar.md
+      - Gmail: sources/gmail.md
+  - Operations:
+      - Overview: operations/index.md
+      - Data branch: operations/data-branch.md
+      - Backups: operations/backups.md
+      - Scheduling: operations/scheduling.md
+  - Reasoning trail:
+      - Overview: reasoning/index.md
+      - Phases: reasoning/phases.md
+      - Refactor plan: PRODUCTION_REFACTOR_PLAN.md
+      - Critique appendix: CRITIQUE_APPENDIX.md
+      - Audit findings: AUDIT_FINDINGS.md

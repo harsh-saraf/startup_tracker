@@ -1,0 +1,24 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - startup-radar-test
+    method: GET
+    uri: https://efts.sec.gov/LATEST/search-index?q=%22Form+D%22&dateRange=custom&startdt=2026-04-12&enddt=2026-04-19&forms=D
+  response:
+    body:
+      string: '{"hits":{"hits":[{"_source":{"display_names":["Acme Biotech Inc (CIK 0001234567)"],"file_date":"2026-04-17","ciks":["0001234567"]}},{"_source":{"display_names":["Globex Holdings LLC"],"file_date":"2026-04-18","ciks":["0007654321"]}},{"_source":{"display_names":["Initech Labs"],"file_date":"2026-04-19","ciks":["0001112223"]}}]}}'
+    headers:
+      Content-Type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

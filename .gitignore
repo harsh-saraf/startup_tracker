@@ -5,6 +5,7 @@ credentials.json
 token.json
 *.env
 .env
+!.env.example
 
 # User data
 *.db
@@ -14,6 +15,10 @@ connections.csv
 LinkedIn*.csv
 logs/
 reports/
+
+# Phase 6 backups
+backups/
+*.tar.gz
 
 # Python
 __pycache__/
@@ -34,3 +39,22 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# Claude Code local overrides
+.claude/settings.local.json
+
+# ruff cache
+.ruff_cache/
+
+# coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Skill eval run outputs (keep evals.json / eval_metadata.json / benchmark.*)
+.claude/skills/*-workspace/iteration-*/eval-*/with_skill/
+.claude/skills/*-workspace/iteration-*/eval-*/without_skill/
+
+# MkDocs (Phase 15)
+/site/
+/.cache/

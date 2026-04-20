@@ -5,17 +5,20 @@ Requires Google Cloud OAuth setup (same credentials.json as the Gmail source).
 
 from pathlib import Path
 
-from models import Startup
+from startup_radar.models import Startup
 
 BASE_DIR = Path(__file__).parent.parent
 CREDENTIALS_FILE = BASE_DIR / "credentials.json"
 TOKEN_FILE = BASE_DIR / "token.json"
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
 
 
 def _get_service():
-    from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
 
@@ -36,8 +39,13 @@ def append_startups(sheet_id: str, startups: list[Startup]) -> int:
     service = _get_service()
     values = [
         [
-            s.company_name, s.description, s.funding_stage, s.amount_raised,
-            s.location, s.source, s.source_url,
+            s.company_name,
+            s.description,
+            s.funding_stage,
+            s.amount_raised,
+            s.location,
+            s.source,
+            s.source_url,
             s.date_found.strftime("%Y-%m-%d") if s.date_found else "",
         ]
         for s in startups

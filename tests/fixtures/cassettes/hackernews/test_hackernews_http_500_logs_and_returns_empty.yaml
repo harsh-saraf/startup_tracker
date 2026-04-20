@@ -1,0 +1,24 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - startup-radar-test
+    method: GET
+    uri: https://hn.algolia.com/api/v1/search_by_date?query=raised+Series+A&tags=story&numericFilters=created_at_i%3E0&hitsPerPage=50
+  response:
+    body:
+      string: '{"error":"internal server error"}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 500
+      message: Internal Server Error
+version: 1

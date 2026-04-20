@@ -6,31 +6,52 @@ on:
     - cron: '0 15 * * *'
   workflow_dispatch: {}
 
+# Only one pipeline run at a time; a newer schedule tick waits, doesn't preempt.
+concurrency:
+  group: daily-run
+  cancel-in-progress: false
+
+permissions:
+  contents: write      # required to push to the `data` branch
+
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Checkout data branch (DB store)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: .data
+        continue-on-error: true     # first run, before `data` exists
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: pip
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --all-extras
 
-      - name: Restore database
-        uses: actions/cache@v4
-        with:
-          path: startup_radar.db
-          key: startup-radar-db-${{ github.run_id }}
-          restore-keys: |
-            startup-radar-db-
+      - name: Restore DB from data branch
+        run: |
+          if [ -f ".data/startup_radar.db" ]; then
+            cp .data/startup_radar.db startup_radar.db
+            echo "Restored DB from data branch: $(stat -c %s startup_radar.db) bytes"
+          else
+            echo "No prior DB found on data branch — starting fresh."
+          fi
 
       - name: Write config
-        # Store your config.yaml contents in a repo secret called CONFIG_YAML.
-        # If you use Gmail / Google Sheets, also store CREDENTIALS_JSON and TOKEN_JSON.
+        # CONFIG_YAML / CREDENTIALS_JSON / TOKEN_JSON live in repo secrets; see README.
         run: |
           echo "$CONFIG_YAML" > config.yaml
           if [ -n "$CREDENTIALS_JSON" ]; then echo "$CREDENTIALS_JSON" > credentials.json; fi
@@ -40,15 +61,40 @@ jobs:
           CREDENTIALS_JSON: ${{ secrets.CREDENTIALS_JSON }}
           TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
 
-      - name: Run pipeline
-        run: python daily_run.py
+      - name: Doctor (fast)
+        run: uv run startup-radar doctor
 
-      - name: Upload database artifact
+      - name: Run pipeline
+        run: uv run startup-radar run --scheduled
+
+      - name: Status (post-run observability)
+        if: always()
+        run: uv run startup-radar status
+
+      - name: Stage DB for data branch
+        if: success()
+        run: |
+          mkdir -p .data
+          cp startup_radar.db .data/startup_radar.db
+
+      - name: Commit DB to data branch
+        if: success()
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5   # v9.1.4
+        with:
+          default_author: github_actions
+          new_branch: data
+          cwd: .data
+          add: startup_radar.db
+          message: "chore(data): pipeline run ${{ github.run_id }} (${{ github.run_started_at }})"
+          push: true
+
+      - name: Upload database artifact (short-term recovery)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: startup-radar-db
           path: startup_radar.db
-          retention-days: 30
+          retention-days: 7
 
       - name: Upload logs
         if: always()

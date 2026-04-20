@@ -1,0 +1,224 @@
+"""Gmail source (optional) — pulls funding announcements from email newsletters.
+
+Requires Google Cloud OAuth setup. See README "Optional: Gmail source" for
+step-by-step instructions.
+
+Setup summary:
+  1. Create a Google Cloud project
+  2. Enable Gmail API
+  3. Create OAuth Desktop app credentials
+  4. Download as credentials.json into the project root
+  5. First run will prompt for consent and cache token.json
+
+This file is intentionally minimal — the interactive /setup skill will
+generate per-newsletter parsers tailored to whatever newsletters you
+actually subscribe to.
+"""
+
+from __future__ import annotations
+
+import base64
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from startup_radar.config import AppConfig
+from startup_radar.models import Startup
+from startup_radar.observability.logging import get_logger
+from startup_radar.parsing.funding import AMOUNT_RE, COMPANY_INLINE_RE, STAGE_RE
+from startup_radar.sources._retry import retry
+from startup_radar.sources.base import Source
+
+if TYPE_CHECKING:
+    from startup_radar.storage import Storage
+
+# Repo-root locations preserved (credentials/token still live at the project root,
+# not inside the package). Phase 4+ may relocate to ~/.config/startup-radar/.
+BASE_DIR = Path(__file__).resolve().parents[2]
+CREDENTIALS_FILE = BASE_DIR / "credentials.json"
+TOKEN_FILE = BASE_DIR / "token.json"
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
+
+log = get_logger(__name__)
+
+
+def _get_service():
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+
+    creds = None
+    if TOKEN_FILE.exists():
+        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            if not CREDENTIALS_FILE.exists():
+                raise FileNotFoundError(
+                    f"credentials.json not found at {CREDENTIALS_FILE}. "
+                    "See README section 'Optional: Gmail source'."
+                )
+            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
+            creds = flow.run_local_server(port=0)
+        TOKEN_FILE.write_text(creds.to_json())
+
+    return build("gmail", "v1", credentials=creds)
+
+
+def _decode(data: str) -> str:
+    if not data:
+        return ""
+    return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+
+
+def _extract_body(payload: dict) -> str:
+    if payload.get("body", {}).get("data"):
+        return _decode(payload["body"]["data"])
+    parts = payload.get("parts", [])
+    for p in parts:
+        if p.get("mimeType") == "text/plain" and p.get("body", {}).get("data"):
+            return _decode(p["body"]["data"])
+    for p in parts:
+        body = _extract_body(p)
+        if body:
+            return body
+    return ""
+
+
+def _parse_body(text: str, subject: str) -> list[Startup]:
+    """Generic regex extraction. The /setup skill can replace this with
+    per-newsletter parsers tailored to the user's specific subscriptions."""
+    found: list[Startup] = []
+    for m in COMPANY_INLINE_RE.finditer(text):
+        start = max(0, m.start() - 50)
+        end = min(len(text), m.end() + 200)
+        snippet = text[start:end]
+
+        amount = AMOUNT_RE.search(snippet)
+        stage = STAGE_RE.search(snippet)
+
+        found.append(
+            Startup(
+                company_name=m.group(1).strip(),
+                description=snippet.strip()[:300],
+                funding_stage=stage.group(0) if stage else "",
+                amount_raised=amount.group(0) if amount else "",
+                source=f"Gmail: {subject[:40]}",
+            )
+        )
+    return found
+
+
+class GmailSource(Source):
+    name = "Gmail"
+    enabled_key = "gmail"
+
+    def service_factory(self):
+        """Hookpoint for tests; returns the real Gmail API client in production."""
+        return _get_service()
+
+    def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:
+        # Filesystem-only even under --network; Phase 13 will pair this with
+        # a proactive token refresh via secrets.py. Until then, leaving the
+        # OAuth refresh to `run` is less surprising than surfacing a stale
+        # token as a doctor failure on every tick.
+        if not CREDENTIALS_FILE.exists():
+            return (False, "credentials.json missing")
+        if not TOKEN_FILE.exists():
+            return (False, "token.json missing — run `startup-radar run` once to auth")
+        return (True, "credentials + token present")
+
+    def fetch(self, cfg: AppConfig, storage: Storage | None = None) -> list[Startup]:
+        gmail_cfg = cfg.sources.gmail
+        if not gmail_cfg.enabled:
+            return []
+
+        if storage is None:
+            log.warning(
+                "source.storage_missing",
+                source=self.name,
+                detail="dedup disabled without storage",
+            )
+
+        try:
+            service = self.service_factory()
+        except Exception as e:
+            log.warning("source.fetch_failed", source=self.name, err=str(e))
+            return []
+
+        label_name = gmail_cfg.label
+
+        try:
+            labels_resp = retry(
+                lambda: service.users().labels().list(userId="me").execute(),
+                context={"source": self.name, "op": "labels.list"},
+            )
+        except Exception as e:
+            log.warning("source.fetch_failed", source=self.name, err=str(e))
+            return []
+
+        label_id = None
+        for lbl in labels_resp.get("labels", []):
+            if lbl["name"] == label_name:
+                label_id = lbl["id"]
+                break
+        if not label_id:
+            log.warning(
+                "source.label_missing",
+                source=self.name,
+                label=label_name,
+            )
+            return []
+
+        try:
+            results = retry(
+                lambda: (
+                    service.users()
+                    .messages()
+                    .list(userId="me", labelIds=[label_id], maxResults=50)
+                    .execute()
+                ),
+                context={"source": self.name, "op": "messages.list"},
+            )
+        except Exception as e:
+            log.warning("source.fetch_failed", source=self.name, err=str(e))
+            return []
+
+        messages = results.get("messages", [])
+        startups: list[Startup] = []
+        new_ids: list[str] = []
+
+        for msg_meta in messages:
+            msg_id = msg_meta["id"]
+            if storage is not None and storage.is_processed("gmail", msg_id):
+                continue
+
+            try:
+                msg = retry(
+                    lambda mid=msg_id: (
+                        service.users().messages().get(userId="me", id=mid, format="full").execute()
+                    ),
+                    context={"source": self.name, "op": "messages.get", "msg_id": msg_id},
+                )
+            except Exception as e:
+                log.warning(
+                    "source.message_fetch_failed",
+                    source=self.name,
+                    msg_id=msg_id,
+                    err=str(e),
+                )
+                continue
+            headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
+            subject = headers.get("Subject", "")
+            body = _extract_body(msg.get("payload", {}))
+            startups.extend(_parse_body(body, subject))
+            new_ids.append(msg_id)
+
+        if storage is not None and new_ids:
+            storage.mark_processed("gmail", new_ids)
+        return startups

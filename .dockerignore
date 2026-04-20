@@ -1,0 +1,40 @@
+# Never bake secrets / user state into the image.
+.env
+.env.*
+*.env
+credentials.json
+token.json
+config.yaml
+*.db
+*.sqlite
+*.sqlite3
+backups/
+*.tar.gz
+logs/
+reports/
+connections.csv
+LinkedIn*.csv
+
+# Build hygiene — keep the build context small.
+.git
+.github
+docs/
+tests/
+.venv/
+venv/
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Editors / OS.
+.DS_Store
+.idea/
+.vscode/

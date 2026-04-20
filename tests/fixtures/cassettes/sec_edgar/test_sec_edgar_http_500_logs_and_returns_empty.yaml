@@ -1,0 +1,24 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - startup-radar-test
+    method: GET
+    uri: https://efts.sec.gov/LATEST/search-index?q=%22Form+D%22&dateRange=custom&startdt=2026-04-12&enddt=2026-04-19&forms=D
+  response:
+    body:
+      string: '{"error":"internal server error"}'
+    headers:
+      Content-Type:
+      - application/json
+    status:
+      code: 500
+      message: Internal Server Error
+version: 1

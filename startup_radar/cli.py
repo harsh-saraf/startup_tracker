@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import functools
 import io
 import logging
 import os
 import sys
 import threading
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, TypeVar
 
 import typer
+
+from startup_radar.errors import StartupRadarError
 
 app = typer.Typer(
     name="startup-radar",
@@ -23,6 +28,14 @@ app = typer.Typer(
 _MAX_SCHEDULED_RUNTIME_SEC = 15 * 60
 _LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 
+_F = TypeVar("_F", bound=Callable[..., None])
+
+
+@dataclass
+class CLIState:
+    config_path: Path | None = None
+    debug: bool = False
+
 
 def _json_logs() -> bool:
     from startup_radar.config import secrets
@@ -31,12 +44,59 @@ def _json_logs() -> bool:
     return s.log_json or s.ci
 
 
+def _catch_errors(func: _F) -> _F:
+    """Boundary wrapper: one-line error for StartupRadarError, traceback only with --debug.
+
+    Generic ``Exception`` propagates untouched so bugs keep surfacing loudly, per
+    ``.claude/rules/observability.md``. ``typer.Exit`` is a control-flow signal and
+    is re-raised unchanged.
+    """
+
+    @functools.wraps(func)
+    def wrapper(ctx: typer.Context, *args: object, **kwargs: object) -> None:
+        from startup_radar.observability.logging import get_logger
+
+        log = get_logger(func.__module__)
+        try:
+            func(ctx, *args, **kwargs)
+        except typer.Exit:
+            raise
+        except StartupRadarError as e:
+            debug = isinstance(ctx.obj, CLIState) and ctx.obj.debug
+            log.error("cli.error", command=func.__name__, error=str(e), exc_info=debug)
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=1) from e
+
+    return wrapper  # type: ignore[return-value]
+
+
 @app.callback()
-def _main() -> None:
+def _main(
+    ctx: typer.Context,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config.yaml. Overrides package-relative default.",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = None,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            "--debug",
+            help="Show full tracebacks on error.",
+        ),
+    ] = False,
+) -> None:
     """Configure structlog once per process."""
     from startup_radar.observability.logging import configure_logging
 
     configure_logging(json=_json_logs())
+    ctx.obj = CLIState(config_path=config, debug=debug)
 
 
 def _repo_root() -> Path:
@@ -84,7 +144,7 @@ class _LogStream(io.TextIOBase):
         pass
 
 
-def pipeline() -> int:
+def pipeline(config_path: Path | None = None) -> int:
     """Run the discovery pipeline once. Public API — also called by the
     ``Run pipeline now`` button in ``startup_radar.web.app``.
     """
@@ -103,7 +163,7 @@ def pipeline() -> int:
     print(f"Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    cfg = load_config()
+    cfg = load_config(path=config_path)
     storage = load_storage(cfg)
     uv_at_run = storage.user_version()
 
@@ -190,8 +250,15 @@ def pipeline() -> int:
 # --- commands --------------------------------------------------------------
 
 
+def _config_path(ctx: typer.Context) -> Path | None:
+    obj = ctx.obj
+    return obj.config_path if isinstance(obj, CLIState) else None
+
+
 @app.command()
+@_catch_errors
 def run(
+    ctx: typer.Context,
     scheduled: Annotated[
         bool,
         typer.Option(
@@ -201,8 +268,9 @@ def run(
     ] = False,
 ) -> None:
     """Run the discovery pipeline once."""
+    cfg_path = _config_path(ctx)
     if not scheduled:
-        raise typer.Exit(code=pipeline())
+        raise typer.Exit(code=pipeline(config_path=cfg_path))
 
     logger = _setup_scheduled_logging()
     logger.info("Startup Radar scheduled run starting")
@@ -218,7 +286,7 @@ def run(
     old_stdout = sys.stdout
     sys.stdout = _LogStream(logger)
     try:
-        rc = pipeline()
+        rc = pipeline(config_path=cfg_path)
         sys.stdout = old_stdout
         timer.cancel()
         logger.info("Scheduled run completed successfully")
@@ -238,25 +306,48 @@ def run(
 
 
 @app.command()
+@_catch_errors
 def serve(
+    ctx: typer.Context,
     port: Annotated[int, typer.Option(help="Port the dashboard binds to.")] = 8501,
+    address: Annotated[
+        str,
+        typer.Option(help="Address the dashboard binds to. Use 0.0.0.0 inside Docker."),
+    ] = "localhost",
 ) -> None:
     """Open the Streamlit dashboard."""
     import subprocess
 
     repo_root = Path(__file__).resolve().parent.parent
     app_path = repo_root / "startup_radar" / "web" / "app.py"
-    cmd = [sys.executable, "-m", "streamlit", "run", str(app_path), "--server.port", str(port)]
-    raise typer.Exit(code=subprocess.call(cmd))
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(app_path),
+        "--server.port",
+        str(port),
+        "--server.address",
+        address,
+    ]
+    env = os.environ.copy()
+    cfg_path = _config_path(ctx)
+    if cfg_path is not None:
+        env["STARTUP_RADAR_CONFIG_PATH"] = str(cfg_path)
+    raise typer.Exit(code=subprocess.call(cmd, env=env))
 
 
 @app.command()
+@_catch_errors
 def deepdive(
+    ctx: typer.Context,
     company: Annotated[str, typer.Argument(help="Company name, e.g. 'Anthropic'.")],
 ) -> None:
     """Generate a one-page research brief (.docx) for COMPANY."""
     from startup_radar.research.deepdive import generate
 
+    del ctx  # accepted only so @_catch_errors can read ctx.obj.debug
     path = generate(company)
     typer.echo(f"Report saved: {path}")
 
@@ -265,7 +356,9 @@ def deepdive(
 
 
 @app.command()
+@_catch_errors
 def backup(
+    ctx: typer.Context,
     output: Annotated[
         Path | None,
         typer.Option(
@@ -287,30 +380,42 @@ def backup(
     ] = False,
 ) -> None:
     """Tar up DB + config + OAuth for local resilience."""
-    raise typer.Exit(code=_backup(output=output, no_secrets=no_secrets, db_only=db_only))
+    raise typer.Exit(
+        code=_backup(
+            output=output,
+            no_secrets=no_secrets,
+            db_only=db_only,
+            config_path=_config_path(ctx),
+        )
+    )
 
 
 @app.command()
+@_catch_errors
 def doctor(
+    ctx: typer.Context,
     network: Annotated[
         bool,
         typer.Option("--network", help="Include HTTP healthchecks for enabled sources."),
     ] = False,
 ) -> None:
     """Validate environment, config, credentials, and source reachability."""
-    raise typer.Exit(code=_doctor(network=network))
+    raise typer.Exit(code=_doctor(network=network, config_path=_config_path(ctx)))
 
 
 @app.command()
-def status() -> None:
+@_catch_errors
+def status(ctx: typer.Context) -> None:
     """Print branch, version, last-run age, DB row counts. No network."""
-    raise typer.Exit(code=_status())
+    raise typer.Exit(code=_status(config_path=_config_path(ctx)))
 
 
 # --- resilience helpers ---------------------------------------------------
 
 
-def _backup(*, output: Path | None, no_secrets: bool, db_only: bool) -> int:
+def _backup(
+    *, output: Path | None, no_secrets: bool, db_only: bool, config_path: Path | None = None
+) -> int:
     import tarfile
 
     from startup_radar.config import load_config
@@ -321,7 +426,7 @@ def _backup(*, output: Path | None, no_secrets: bool, db_only: bool) -> int:
     # config itself is broken (so `backup --db-only` still works when config
     # is the very thing the user is trying to recover from).
     try:
-        cfg = load_config()
+        cfg = load_config(path=config_path)
         db_path = Path(cfg.output.sqlite.path)
         if not db_path.is_absolute():
             db_path = repo_root / db_path
@@ -368,7 +473,7 @@ def _backup(*, output: Path | None, no_secrets: bool, db_only: bool) -> int:
     return 0
 
 
-def _doctor(*, network: bool) -> int:
+def _doctor(*, network: bool, config_path: Path | None = None) -> int:
     import shutil
 
     from startup_radar.config import ConfigError, load_config
@@ -387,7 +492,7 @@ def _doctor(*, network: bool) -> int:
 
     cfg = None
     try:
-        cfg = load_config()
+        cfg = load_config(path=config_path)
         checks.append(("✓", "config.yaml", "validates against AppConfig schema"))
     except ConfigError as e:
         first = str(e).splitlines()[0]
@@ -446,7 +551,7 @@ def _doctor(*, network: bool) -> int:
     return 1 if fails else 0
 
 
-def _status() -> int:
+def _status(*, config_path: Path | None = None) -> int:
     import sqlite3
     import subprocess
 
@@ -488,7 +593,7 @@ def _status() -> int:
     try:
         from startup_radar.config import load_config
 
-        cfg = load_config()
+        cfg = load_config(path=config_path)
         db_path = Path(cfg.output.sqlite.path)
         if not db_path.is_absolute():
             db_path = repo_root / db_path

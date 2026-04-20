@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import yaml  # type: ignore[import-untyped]
 from pydantic import ValidationError
 
 from startup_radar.config.schema import AppConfig
+from startup_radar.errors import ConfigError
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 CONFIG_FILE = BASE_DIR / "config.yaml"
 EXAMPLE_FILE = BASE_DIR / "config.example.yaml"
 
-
-class ConfigError(Exception):
-    """Raised when config.yaml is missing, unparseable, or fails schema validation."""
+# Scoped subprocess hand-off only: `startup-radar serve` sets this when it
+# spawns Streamlit so the child's `web/app.py` sees the CLI's `--config`.
+# NOT a general-purpose env fallback — do not read elsewhere.
+_SERVE_HANDOFF_ENV = "STARTUP_RADAR_CONFIG_PATH"
 
 
 def load_config(path: Path | None = None) -> AppConfig:
@@ -27,7 +30,11 @@ def load_config(path: Path | None = None) -> AppConfig:
     if path is not None:
         src = path
     else:
-        src = CONFIG_FILE if CONFIG_FILE.exists() else EXAMPLE_FILE
+        handoff = os.environ.get(_SERVE_HANDOFF_ENV)
+        if handoff:
+            src = Path(handoff)
+        else:
+            src = CONFIG_FILE if CONFIG_FILE.exists() else EXAMPLE_FILE
 
     if not src.exists():
         raise ConfigError(

@@ -1,0 +1,19 @@
+# Optional convenience wrapper. Single-user tool, no Postgres service (dropped
+# per docs/PRODUCTION_REFACTOR_PLAN.md §0a). The image's ENTRYPOINT is
+# `startup-radar`, so `command:` supplies only its arguments. For the
+# one-shot pipeline:
+#   docker compose run --rm radar --config /config/config.yaml run
+
+services:
+  radar:
+    build: .
+    image: startup-radar:phase-14
+    container_name: startup-radar
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/data
+      - ./config:/config
+    # Default CMD serves the dashboard. Uncomment to run the pipeline instead:
+    # command: ["--config", "/config/config.yaml", "run", "--scheduled"]

@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-unit test-integration test-record lint format format-check typecheck ci serve run doctor db-migrate clean docs docs-serve
+.PHONY: help install install-dev test test-unit test-integration test-record lint format format-check typecheck ci serve run doctor db-migrate clean docker-build docker-run docker-shell docs docs-serve
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS=":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -53,6 +53,15 @@ db-migrate:  ## Apply pending SQLite migrations (safe to re-run; idempotent)
 clean:  ## Remove build/cache artifacts
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
+docker-build:  ## Build the single-image container (startup-radar:phase-14)
+	docker build -t startup-radar:phase-14 .
+
+docker-run:  ## Run the dashboard in a container (mounts ./data + ./config)
+	docker run --rm -p 8501:8501 -v $$PWD/data:/data -v $$PWD/config:/config startup-radar:phase-14
+
+docker-shell:  ## Open a bash shell inside the container for inspection
+	docker run --rm -it --entrypoint bash -v $$PWD/data:/data -v $$PWD/config:/config startup-radar:phase-14
 
 docs:  ## Build the MkDocs site into ./site with --strict
 	uv run mkdocs build --strict

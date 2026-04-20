@@ -31,9 +31,13 @@ class Source(ABC):
     def fetch(self, cfg: AppConfig, storage: Storage | None = None) -> list[Startup]:
         """Pull records and return zero or more Startup rows.
 
-        On failure, log at WARNING and return []. Never raise out of
-        this method — the orchestrator should never see a partial
-        crash that aborts the whole run.
+        Transient failures (timeouts, 5xx, parse glitches) go through the
+        ``log.warning → return []`` pattern from ``.claude/rules/observability.md``
+        (``_retry`` already absorbs brief blips). Raise
+        ``startup_radar.errors.SourceError`` only for non-transient failures the
+        caller should surface to the user — the pipeline records them via
+        ``storage.record_run(..., error=...)`` and the CLI boundary renders them
+        as a single-line error.
         """
 
     def healthcheck(self, cfg: AppConfig, *, network: bool = False) -> tuple[bool, str]:

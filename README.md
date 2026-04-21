@@ -2,8 +2,6 @@
 
 A personal daily scanner that finds startups matching your criteria (industry, funding stage, location) and flags open roles that fit your target job titles. Pulls from free public sources out of the box — no API keys required. Optional Gmail integration for curated VC newsletters.
 
-> Built by [Xaviera Ho](https://github.com/xavierahojjx-afk) — originally as a personal Stanford MBA job search tool, then generalized for public use.
-
 ---
 
 ## What you get
